@@ -1,0 +1,422 @@
+/**
+ * WebPicSimulator CSS v1.0.0
+ * Design ispirato a S7-1200 Simulator
+ */
+
+:root {
+    --picsim-bg: #1e2227;
+    --picsim-bg-light: #262b31;
+    --picsim-bg-lighter: #2f353d;
+    --picsim-border: #3a4149;
+    --picsim-text: #e4e4e7;
+    --picsim-text-dim: #8b929a;
+    --picsim-accent: #22d3a0;
+    --picsim-success: #22c55e;
+    --picsim-warning: #f59e0b;
+    --picsim-danger: #ef4444;
+    --picsim-font: 'JetBrains Mono', 'Consolas', monospace;
+}
+
+/* === BASE === */
+.picsim {
+    font-family: var(--picsim-font);
+    font-size: 13px;
+    background: var(--picsim-bg);
+    color: var(--picsim-text);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+    border-radius: 6px;
+    position: relative;
+}
+.picsim *, .picsim *::before, .picsim *::after { box-sizing: border-box; }
+
+.picsim--fullscreen {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 999999;
+    border-radius: 0;
+}
+
+/* === HEADER === */
+.picsim__header {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    height: 48px;
+    background: var(--picsim-bg-light);
+    border-bottom: 1px solid var(--picsim-border);
+}
+
+.picsim__logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.picsim__logo-icon { color: var(--picsim-accent); }
+.picsim__title { font-size: 16px; font-weight: 600; }
+.picsim__author { color: var(--picsim-text-dim); font-size: 12px; margin-left: 8px; }
+
+/* Toolbar - solo fullscreen */
+.picsim__toolbar { display: none; align-items: center; gap: 8px; margin-left: 24px; flex: 1; }
+.picsim--fullscreen .picsim__toolbar { display: flex; }
+
+.picsim__toolbar-sep { width: 1px; height: 24px; background: var(--picsim-border); margin: 0 4px; }
+
+/* Pulsanti standard */
+.picsim__btn {
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    background: var(--picsim-bg-lighter);
+    border: 1px solid var(--picsim-border);
+    border-radius: 4px;
+    color: var(--picsim-text);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.picsim__btn:hover:not(:disabled) { border-color: var(--picsim-accent); background: var(--picsim-border); }
+.picsim__btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.picsim__btn--primary { background: rgba(34,211,160,0.15); border-color: var(--picsim-accent); color: var(--picsim-accent); }
+.picsim__btn--primary:hover:not(:disabled) { background: var(--picsim-accent); color: var(--picsim-bg); }
+.picsim__btn--success { background: rgba(34,197,94,0.15); border-color: var(--picsim-success); color: var(--picsim-success); }
+.picsim__btn--success:hover:not(:disabled) { background: var(--picsim-success); color: white; }
+.picsim__btn--warning { background: rgba(245,158,11,0.15); border-color: var(--picsim-warning); color: var(--picsim-warning); }
+.picsim__btn--warning:hover:not(:disabled) { background: var(--picsim-warning); color: black; }
+.picsim__btn--danger { background: rgba(239,68,68,0.15); border-color: var(--picsim-danger); color: var(--picsim-danger); }
+.picsim__btn--danger:hover:not(:disabled) { background: var(--picsim-danger); color: white; }
+
+/* Pulsante fullscreen in header */
+.picsim__btn-fullscreen {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: transparent;
+    border: 1px solid var(--picsim-border);
+    border-radius: 4px;
+    color: var(--picsim-text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-left: 12px;
+}
+.picsim__btn-fullscreen:hover { background: var(--picsim-accent); color: var(--picsim-bg); border-color: var(--picsim-accent); }
+.picsim--fullscreen .picsim__btn-fullscreen { display: flex; }
+
+.picsim__select {
+    padding: 6px 10px;
+    font-family: inherit;
+    font-size: 12px;
+    background: var(--picsim-bg-lighter);
+    border: 1px solid var(--picsim-border);
+    border-radius: 4px;
+    color: var(--picsim-text);
+    cursor: pointer;
+}
+.picsim__select:hover { border-color: var(--picsim-accent); }
+
+/* Expand button - solo modalità normale */
+.picsim__expand-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--picsim-border);
+    border-radius: 4px;
+    color: var(--picsim-text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.picsim__expand-btn:hover { background: var(--picsim-accent); color: var(--picsim-bg); border-color: var(--picsim-accent); }
+.picsim--fullscreen .picsim__expand-btn { display: none; }
+
+/* === MINI TOOLBAR === */
+.picsim__mini-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: var(--picsim-bg-light);
+    border-bottom: 1px solid var(--picsim-border);
+}
+.picsim--fullscreen .picsim__mini-toolbar { display: none; }
+
+.picsim__mbtn {
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: 11px;
+    background: var(--picsim-bg-lighter);
+    border: 1px solid var(--picsim-border);
+    border-radius: 3px;
+    color: var(--picsim-text);
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.picsim__mbtn:hover:not(:disabled) { border-color: var(--picsim-accent); }
+.picsim__mbtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.picsim__mbtn--primary { background: rgba(34,211,160,0.15); border-color: var(--picsim-accent); color: var(--picsim-accent); }
+.picsim__mbtn--success { background: rgba(34,197,94,0.15); border-color: var(--picsim-success); color: var(--picsim-success); }
+.picsim__mbtn--warning { background: rgba(245,158,11,0.15); border-color: var(--picsim-warning); color: var(--picsim-warning); }
+.picsim__mbtn--danger { background: rgba(239,68,68,0.15); border-color: var(--picsim-danger); color: var(--picsim-danger); }
+
+.picsim__mini-sep { width: 1px; height: 20px; background: var(--picsim-border); margin: 0 6px; }
+.picsim__mini-select { padding: 4px 6px; font-size: 11px; background: var(--picsim-bg-lighter); border: 1px solid var(--picsim-border); border-radius: 3px; color: var(--picsim-text); }
+
+.picsim__speed-group { display: flex; align-items: center; gap: 6px; }
+.picsim__speed-label { font-size: 12px; }
+.picsim__speed-slider { width: 60px; accent-color: var(--picsim-accent); cursor: pointer; }
+.picsim__speed-val { font-size: 10px; color: var(--picsim-accent); min-width: 42px; }
+
+/* === MAIN === */
+.picsim__main { display: flex; flex: 1; overflow: hidden; }
+
+/* Editor */
+.picsim__editor-panel { flex: 1; display: flex; flex-direction: column; min-width: 350px; border-right: 1px solid var(--picsim-border); }
+.picsim__editor-container { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+.picsim__line-numbers {
+    width: 48px;
+    padding: 8px 4px;
+    background: var(--picsim-bg-light);
+    border-right: 1px solid var(--picsim-border);
+    text-align: right;
+    overflow: hidden;
+    user-select: none;
+    font-size: 12px;
+    line-height: 18px;
+}
+.picsim__line-num { display: block; padding-right: 4px; color: var(--picsim-text-dim); cursor: pointer; }
+.picsim__line-num:hover { color: var(--picsim-text); background: var(--picsim-bg-lighter); }
+.picsim__line-num--bp { color: var(--picsim-danger); background: rgba(239,68,68,0.2); }
+.picsim__line-num--current { color: var(--picsim-success); background: rgba(34,197,94,0.2); }
+.picsim__line-num--error { text-decoration: underline wavy var(--picsim-danger); }
+
+.picsim__editor-wrapper { flex: 1; position: relative; overflow: hidden; }
+.picsim__line-highlight { position: absolute; left: 0; right: 0; height: 18px; background: rgba(34,197,94,0.12); pointer-events: none; display: none; }
+.picsim__editor {
+    width: 100%;
+    height: 100%;
+    padding: 8px;
+    font-family: var(--picsim-font);
+    font-size: 13px;
+    line-height: 18px;
+    background: var(--picsim-bg);
+    color: var(--picsim-text);
+    border: none;
+    outline: none;
+    resize: none;
+    white-space: pre;
+    overflow: auto;
+}
+
+.picsim__errors { max-height: 0; overflow: hidden; background: rgba(239,68,68,0.08); border-top: 1px solid var(--picsim-border); transition: max-height 0.2s; }
+.picsim__errors--visible { max-height: 120px; overflow: auto; }
+.picsim__error { display: flex; gap: 8px; padding: 5px 10px; font-size: 11px; border-bottom: 1px solid var(--picsim-border); cursor: pointer; }
+.picsim__error:hover { background: rgba(239,68,68,0.12); }
+.picsim__error span:first-child { color: var(--picsim-danger); font-weight: 600; min-width: 50px; }
+
+/* === PANELS === */
+.picsim__panels { width: 300px; display: flex; flex-direction: column; overflow-y: auto; background: var(--picsim-bg-light); }
+.picsim__panel { border-bottom: 1px solid var(--picsim-border); }
+.picsim__panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: var(--picsim-bg-lighter);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--picsim-text-dim);
+}
+.picsim__panel-badge { font-size: 10px; padding: 1px 5px; background: var(--picsim-bg); border-radius: 8px; font-weight: normal; }
+.picsim__panel-content { padding: 8px 10px; }
+.picsim__panel-content--scroll { max-height: 150px; overflow-y: auto; }
+
+.picsim__btn-x { background: none; border: none; color: var(--picsim-text-dim); cursor: pointer; font-size: 12px; }
+.picsim__btn-x:hover { color: var(--picsim-danger); }
+
+/* Registers */
+.picsim__registers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.picsim__reg { display: flex; justify-content: space-between; padding: 3px 5px; background: var(--picsim-bg); border-radius: 2px; }
+.picsim__reg-name { color: var(--picsim-text-dim); font-size: 9px; }
+.picsim__reg-value { color: var(--picsim-accent); font-weight: 600; font-size: 11px; }
+
+.picsim__status-bits { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
+.picsim__bit { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--picsim-bg); border-radius: 2px; font-size: 9px; font-weight: 600; color: var(--picsim-text-dim); }
+.picsim__bit--set { background: var(--picsim-success); color: white; }
+
+/* Ports */
+.picsim__port-legend {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--picsim-border);
+    font-size: 9px;
+}
+.picsim__legend-item { display: flex; align-items: center; gap: 4px; color: var(--picsim-text-dim); }
+.picsim__legend-pin { width: 12px; height: 12px; border-radius: 2px; border: 2px solid; }
+.picsim__legend-pin--in { border-color: var(--picsim-warning); background: transparent; }
+.picsim__legend-pin--out { border-color: var(--picsim-accent); background: transparent; }
+.picsim__legend-pin--high { border-color: var(--picsim-success); background: var(--picsim-success); }
+.picsim__legend-pin--low { border-color: var(--picsim-text-dim); background: var(--picsim-bg-lighter); }
+
+.picsim__port { margin-bottom: 10px; }
+.picsim__port:last-child { margin-bottom: 0; }
+.picsim__port-header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; font-size: 10px; }
+.picsim__port-name { font-weight: 600; }
+.picsim__port-value { color: var(--picsim-accent); }
+.picsim__port-tris { color: var(--picsim-text-dim); margin-left: auto; }
+.picsim__tris-val { 
+    color: var(--picsim-warning); 
+    cursor: pointer; 
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+.picsim__tris-val:hover { background: var(--picsim-bg-lighter); }
+.picsim__tris-input {
+    width: 28px;
+    padding: 1px 3px;
+    font-family: inherit;
+    font-size: 10px;
+    text-align: center;
+    background: var(--picsim-bg);
+    border: 1px solid var(--picsim-warning);
+    border-radius: 2px;
+    color: var(--picsim-warning);
+    outline: none;
+}
+.picsim__port-pins { display: flex; gap: 3px; justify-content: flex-end; }
+.picsim__pin {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--picsim-bg);
+    border: 2px solid var(--picsim-border);
+    border-radius: 3px;
+    font-size: 9px;
+    cursor: pointer;
+    transition: all 0.12s;
+    position: relative;
+}
+.picsim__pin--input { border-color: var(--picsim-warning); }
+.picsim__pin--output { border-color: var(--picsim-accent); }
+.picsim__pin--high { background: var(--picsim-success); color: white; }
+.picsim__pin--low { background: var(--picsim-bg-lighter); }
+.picsim__pin--input:hover { box-shadow: 0 0 6px var(--picsim-warning); }
+.picsim__pin--output:hover { box-shadow: 0 0 6px var(--picsim-accent); }
+
+/* Stack */
+.picsim__stack-item { display: flex; justify-content: space-between; padding: 2px 6px; font-size: 10px; border-bottom: 1px solid var(--picsim-border); }
+.picsim__stack-item:last-child { border-bottom: none; }
+.picsim__stack-item--top { background: rgba(34,211,160,0.15); color: var(--picsim-accent); }
+
+/* Timer */
+.picsim__timer-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+.picsim__timer-bar { flex: 1; height: 6px; background: var(--picsim-bg); border-radius: 3px; overflow: hidden; }
+.picsim__timer-bar span { display: block; height: 100%; background: var(--picsim-accent); transition: width 0.1s; }
+.picsim__timer-info { display: flex; justify-content: space-between; font-size: 9px; color: var(--picsim-text-dim); }
+
+/* Memory */
+.picsim__memory-tabs { display: flex; gap: 3px; }
+.picsim__memory-tab { padding: 2px 6px; font-size: 9px; font-family: inherit; background: transparent; border: 1px solid transparent; border-radius: 2px; color: var(--picsim-text-dim); cursor: pointer; }
+.picsim__memory-tab--active { background: var(--picsim-bg); border-color: var(--picsim-border); color: var(--picsim-text); }
+.picsim__mem-grid { font-size: 10px; }
+.picsim__mem-row { display: flex; gap: 5px; padding: 1px 0; }
+.picsim__mem-addr { color: var(--picsim-text-dim); width: 22px; }
+.picsim__mem-val { color: var(--picsim-accent); }
+.picsim__mem-val--editable { 
+    cursor: pointer; 
+    padding: 1px 3px; 
+    border-radius: 2px;
+    min-width: 20px;
+    text-align: center;
+}
+.picsim__mem-val--editable:hover { background: var(--picsim-bg-lighter); }
+.picsim__mem-input {
+    width: 24px;
+    padding: 1px 2px;
+    font-family: inherit;
+    font-size: 10px;
+    text-align: center;
+    background: var(--picsim-bg);
+    border: 1px solid var(--picsim-accent);
+    border-radius: 2px;
+    color: var(--picsim-accent);
+    outline: none;
+}
+.picsim__mem-instr { display: flex; gap: 8px; padding: 1px 4px; font-size: 10px; }
+.picsim__mem-instr--current { background: rgba(34,197,94,0.15); }
+
+.picsim__hint { color: var(--picsim-text-dim); font-size: 10px; }
+.picsim__bp-item { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 10px; }
+
+/* === FOOTER === */
+.picsim__footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 16px;
+    background: var(--picsim-bg-light);
+    border-top: 1px solid var(--picsim-border);
+    font-size: 11px;
+    position: relative;
+}
+
+.picsim__footer-left {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    left: 16px;
+}
+.picsim--fullscreen .picsim__footer-left { display: flex; }
+
+.picsim__footer-center {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--picsim-text-dim);
+}
+.picsim__footer-center a { color: var(--picsim-accent); text-decoration: none; }
+.picsim__footer-center a:hover { text-decoration: underline; }
+
+.picsim__footer-right {
+    position: absolute;
+    right: 16px;
+    color: var(--picsim-text-dim);
+}
+
+.picsim__footer-sep { color: var(--picsim-border); }
+
+.picsim__status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--picsim-text-dim); }
+.picsim__status-dot--idle { background: var(--picsim-text-dim); }
+.picsim__status-dot--running { background: var(--picsim-success); animation: pulse 1s infinite; }
+.picsim__status-dot--success { background: var(--picsim-success); }
+.picsim__status-dot--error { background: var(--picsim-danger); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* === SCROLLBAR === */
+.picsim ::-webkit-scrollbar { width: 6px; height: 6px; }
+.picsim ::-webkit-scrollbar-track { background: var(--picsim-bg); }
+.picsim ::-webkit-scrollbar-thumb { background: var(--picsim-border); border-radius: 3px; }
+.picsim ::-webkit-scrollbar-thumb:hover { background: var(--picsim-text-dim); }
+
+/* === RESPONSIVE === */
+@media (max-width: 900px) {
+    .picsim__main { flex-direction: column; }
+    .picsim__panels { width: 100%; max-height: 280px; }
+    .picsim__editor-panel { min-width: 100%; }
+}
