@@ -5,6 +5,15 @@
 
 class PIC16F84A {
     constructor() {
+        // Breakpoints e callbacks sopravvivono al reset: appartengono al
+        // debugger/UI, non allo stato del microcontrollore.
+        this.breakpoints = new Set();
+        this.onPortChange = null;
+        this.onRegisterChange = null;
+        this.onMemoryChange = null;
+        this.onBreakpoint = null;
+        this.onStep = null;
+
         this.reset();
     }
 
@@ -30,7 +39,6 @@ class PIC16F84A {
         this.cycles = 0;
         this.running = false;
         this.sleeping = false;
-        this.breakpoints = new Set();
         
         // Prescaler
         this.prescaler = 0;
@@ -48,13 +56,6 @@ class PIC16F84A {
         this.externalPortA = 0;
         this.externalPortB = 0;
         this.t0ckiPrev = 0;
-        
-        // Callbacks
-        this.onPortChange = null;
-        this.onRegisterChange = null;
-        this.onMemoryChange = null;
-        this.onBreakpoint = null;
-        this.onStep = null;
         
         // Inizializza registri a valori di reset
         this.initRegisters();
@@ -114,41 +115,33 @@ class PIC16F84A {
             return this.PC & 0xFF;
         }
         
-        // PORTA: read pins based on TRIS
-        if (effAddr === 0x05) {
-            const trisa = this.ram[0x85];
-            const latch = this.ram[0x05];
-            let result = 0;
-            for (let i = 0; i < 5; i++) {
-                if (trisa & (1 << i)) {
-                    // Input: read external
-                    result |= (this.externalPortA & (1 << i));
-                } else {
-                    // Output: read latch
-                    result |= (latch & (1 << i));
-                }
-            }
-            return result & 0x1F;
-        }
-        
-        // PORTB: read pins based on TRIS
-        if (effAddr === 0x06) {
-            const trisb = this.ram[0x86];
-            const latch = this.ram[0x06];
-            let result = 0;
-            for (let i = 0; i < 8; i++) {
-                if (trisb & (1 << i)) {
-                    // Input: read external
-                    result |= (this.externalPortB & (1 << i));
-                } else {
-                    // Output: read latch
-                    result |= (latch & (1 << i));
-                }
-            }
-            return result;
-        }
+        // PORTA / PORTB: read pins based on TRIS
+        if (effAddr === 0x05) return this.readPortPins('A');
+        if (effAddr === 0x06) return this.readPortPins('B');
         
         return this.ram[effAddr];
+    }
+
+    /**
+     * Valore letto sui pin di una porta: per ogni bit il latch se e' output,
+     * il livello esterno se e' input. Indipendente dal bank corrente, quindi
+     * utilizzabile anche dalla UI (readRAM invece segue RP0 e in bank 1
+     * restituirebbe TRISA/TRISB).
+     */
+    readPortPins(port) {
+        const isA = (port === 'A');
+        const tris = isA ? this.ram[0x85] : this.ram[0x86];
+        const latch = isA ? this.ram[0x05] : this.ram[0x06];
+        const external = isA ? this.externalPortA : this.externalPortB;
+        const width = isA ? 5 : 8;
+        
+        let result = 0;
+        for (let i = 0; i < width; i++) {
+            const mask = 1 << i;
+            // Input: livello esterno. Output: latch.
+            result |= ((tris & mask) ? external : latch) & mask;
+        }
+        return result;
     }
 
     writeRAM(addr, value) {
@@ -383,10 +376,11 @@ class PIC16F84A {
     }
 
     doTMR0Increment() {
-        this.ram[0x01]++;
-        if (this.ram[0x01] > 255) {
-            this.ram[0x01] = 0;
-            // Overflow: set T0IF
+        // ram e' una Uint8Array: 0xFF + 1 avvolge gia' a 0x00, quindi
+        // l'overflow si riconosce dal valore risultante, non da un > 255.
+        this.ram[0x01] = (this.ram[0x01] + 1) & 0xFF;
+        if (this.ram[0x01] === 0) {
+            // Overflow FF -> 00: set T0IF
             this.ram[0x0B] |= 0x04;
         }
         this.notifyRegisterChange('TMR0', this.ram[0x01]);

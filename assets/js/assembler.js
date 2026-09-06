@@ -20,6 +20,7 @@ class PIC16Assembler {
         this.warnings = [];
         this.sourceMap = {}; // address -> line number
         this.listing = [];
+        this.cblockAddress = undefined; // CBLOCK aperto (undefined = nessuno)
     }
 
     initRegisters() {
@@ -98,6 +99,13 @@ class PIC16Assembler {
         
         // Pass 1: collect labels and calculate addresses
         this.pass1(lines);
+        
+        if (this.cblockAddress !== undefined) {
+            // Senza ENDC ogni riga successiva verrebbe scambiata per una
+            // variabile e il programma risulterebbe vuoto senza spiegazione.
+            this.errors.push({ line: lines.length, message: 'CBLOCK senza ENDC' });
+            this.cblockAddress = undefined;
+        }
         
         if (this.errors.length > 0) {
             return this.getResult();

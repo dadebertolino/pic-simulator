@@ -193,7 +193,7 @@ class SimulatorUI {
         this.clearErrors();
         const result = this.simulator.loadSource(this.getSource());
         if (result.success) {
-            this.setStatus('Assembled: ' + result.words.length + ' words', 'success');
+            this.setStatus('Assembled: ' + result.programMemory.length + ' words', 'success');
             this.simulator.reset();
         } else {
             this.showAssemblyErrors(result.errors);
@@ -371,7 +371,8 @@ class SimulatorUI {
                     const current = port === 'A' ? this.cpu.externalPortA : this.cpu.externalPortB;
                     this.cpu.setExternalInput(port, bit, (current & (1 << bit)) ? 0 : 1);
                     this.updatePort(port);
-                    this.setStatus(`R${port}${bit} = ${(this.cpu.externalPortA & (1 << bit)) ? 1 : 0}`, 'success');
+                    const updated = port === 'A' ? this.cpu.externalPortA : this.cpu.externalPortB;
+                    this.setStatus(`R${port}${bit} = ${(updated & (1 << bit)) ? 1 : 0}`, 'success');
                 } else {
                     this.setStatus(`R${port}${bit} è configurato come OUTPUT`, 'warning');
                 }
@@ -429,9 +430,12 @@ class SimulatorUI {
         const data = port === 'A' ? this.cpu.ram[0x05] : this.cpu.ram[0x06];
         const tris = port === 'A' ? this.cpu.ram[0x85] : this.cpu.ram[0x86];
         const ext = port === 'A' ? this.cpu.externalPortA : this.cpu.externalPortB;
+        // Valore letto sui pin: latch sugli output, livello esterno sugli input.
+        // E' quello che leggerebbe il programma, non il solo latch.
+        const pins = this.cpu.readPortPins(port);
         
         const valueEl = document.getElementById(`port${port.toLowerCase()}-value`);
-        if (valueEl) valueEl.textContent = data.toString(16).toUpperCase().padStart(2, '0');
+        if (valueEl) valueEl.textContent = pins.toString(16).toUpperCase().padStart(2, '0');
         
         const trisEl = document.getElementById(`tris${port.toLowerCase()}-value`);
         if (trisEl) trisEl.textContent = tris.toString(16).toUpperCase().padStart(2, '0');
