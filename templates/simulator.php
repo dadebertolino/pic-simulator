@@ -265,7 +265,17 @@ defined('ABSPATH') || exit;
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+(function() {
+    // Se il documento e' gia' pronto (shortcode reso via AJAX o nell'anteprima
+    // dell'editor a blocchi) DOMContentLoaded non scattera' piu': in quel caso
+    // si parte subito.
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPicSim);
+    } else {
+        initPicSim();
+    }
+
+function initPicSim() {
     if (typeof PIC16F84A === 'undefined' || typeof PIC16Assembler === 'undefined' || 
         typeof Simulator === 'undefined' || typeof SimulatorUI === 'undefined') {
         document.getElementById('status-text').textContent = 'Error: Scripts not loaded';
@@ -367,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // === ESEMPI ===
     function loadEx(v) {
         if (!v) return;
-        fetch('<?php echo PICSIM_URL; ?>examples/' + v + '.asm')
+        fetch('<?php echo esc_js(PICSIM_URL); ?>examples/' + v + '.asm')
             .then(r => r.ok ? r.text() : Promise.reject())
             .then(c => { ui.fullReset(); ui.setSource(c); ui.setStatus('Caricato: ' + v, 'success'); })
             .catch(() => ui.setStatus('Errore', 'error'));
@@ -376,5 +386,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('examples-select2')?.addEventListener('change', function() { loadEx(this.value); this.value = ''; });
     
     console.log('WebPicSimulator v<?php echo PICSIM_VERSION; ?>');
-});
+}
+})();
 </script>

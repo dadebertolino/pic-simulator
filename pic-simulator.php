@@ -3,7 +3,7 @@
  * Plugin Name: WebPicSimulator
  * Plugin URI: https://example.com/webpicsimulator
  * Description: Simulatore web-based per microcontrollori PIC16F84A. Uso: shortcode [pic_simulator]
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Prof. D. Bertolino
  * License: MIT
  * Text Domain: webpicsimulator
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Costanti
-define('PICSIM_VERSION', '1.0.0');
+define('PICSIM_VERSION', '1.0.1');
 define('PICSIM_PATH', plugin_dir_path(__FILE__));
 define('PICSIM_URL', plugin_dir_url(__FILE__));
 
@@ -26,6 +26,9 @@ class WebPicSimulator {
     
     private static $instance = null;
     
+    /** Un solo simulatore per pagina: vedi render_shortcode(). */
+    private static $rendered = false;
+    
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -34,38 +37,30 @@ class WebPicSimulator {
     }
     
     private function __construct() {
-        add_action('wp_enqueue_scripts', [$this, 'enqueue_scripts']);
+        add_action('wp_enqueue_scripts', [$this, 'register_assets']);
         add_shortcode('pic_simulator', [$this, 'render_shortcode']);
         add_action('admin_menu', [$this, 'admin_menu']);
     }
     
     /**
-     * Carica scripts e stili
+     * Registra scripts e stili.
+     *
+     * La registrazione e' incondizionata: l'accodamento vero avviene in
+     * enqueue_assets(), chiamato dallo shortcode. Il vecchio controllo su
+     * $post->post_content non vedeva lo shortcode dentro blocchi FSE,
+     * widget, template di page builder o campi personalizzati, e in quei
+     * casi il simulatore veniva mostrato senza CSS ne' JS.
      */
-    public function enqueue_scripts() {
-        global $post;
-        
-        // Carica solo se shortcode presente
-        if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'pic_simulator')) {
-            return;
-        }
-        
-        // CSS
-        wp_enqueue_style(
+    public function register_assets() {
+        wp_register_style(
             'picsim-style',
             PICSIM_URL . 'assets/css/style.css',
             [],
             PICSIM_VERSION
         );
         
-        // Google Fonts
-        wp_enqueue_style(
-            'picsim-fonts',
-            'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap'
-        );
-        
-        // JavaScript - ordine di caricamento importante
-        wp_enqueue_script(
+        // Ordine di caricamento importante: le dipendenze lo garantiscono
+        wp_register_script(
             'picsim-cpu',
             PICSIM_URL . 'assets/js/pic16f84a.js',
             [],
@@ -73,7 +68,7 @@ class WebPicSimulator {
             true
         );
         
-        wp_enqueue_script(
+        wp_register_script(
             'picsim-assembler',
             PICSIM_URL . 'assets/js/assembler.js',
             [],
@@ -81,7 +76,7 @@ class WebPicSimulator {
             true
         );
         
-        wp_enqueue_script(
+        wp_register_script(
             'picsim-simulator',
             PICSIM_URL . 'assets/js/simulator.js',
             ['picsim-cpu', 'picsim-assembler'],
@@ -89,23 +84,49 @@ class WebPicSimulator {
             true
         );
         
-        wp_enqueue_script(
+        wp_register_script(
             'picsim-ui',
             PICSIM_URL . 'assets/js/ui.js',
             ['picsim-simulator'],
             PICSIM_VERSION,
             true
         );
+        
+        // Se lo shortcode e' rilevabile nel contenuto, accoda subito: cosi'
+        // il CSS finisce nell'head. Altrimenti ci pensa lo shortcode stesso.
+        global $post;
+        if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'pic_simulator')) {
+            $this->enqueue_assets();
+        }
+    }
+    
+    /**
+     * Accoda gli asset. Idempotente: WordPress ignora i doppioni.
+     */
+    public function enqueue_assets() {
+        wp_enqueue_style('picsim-style');
+        wp_enqueue_script('picsim-ui'); // le dipendenze trascinano gli altri
     }
     
     /**
      * Renderizza shortcode
      */
     public function render_shortcode($atts) {
+        // L'interfaccia usa ID fissi (code-editor, btn-run, ...): due istanze
+        // nella stessa pagina si romperebbero a vicenda in modo silenzioso.
+        // Meglio dirlo che lasciare all'utente un simulatore inerte.
+        if (self::$rendered) {
+            return '<p class="picsim-notice"><strong>WebPicSimulator:</strong> '
+                 . esc_html__('e\' possibile inserire un solo simulatore per pagina.', 'webpicsimulator')
+                 . '</p>';
+        }
+        self::$rendered = true;
+        
+        $this->enqueue_assets();
+        
         $atts = shortcode_atts([
             'height' => '800px',
-            'fullwidth' => 'no',
-            'theme' => 'dark'
+            'fullwidth' => 'no'
         ], $atts);
         
         $height = esc_attr($atts['height']);
@@ -154,6 +175,7 @@ class WebPicSimulator {
                     <td>yes/no - Espande a tutto schermo (default: no)</td>
                 </tr>
             </table>
+            <p><em>Nota:</em> e' possibile inserire un solo simulatore per pagina.</p>
             
             <h3>Esempi</h3>
             <p><code>[pic_simulator]</code></p>

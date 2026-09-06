@@ -14,7 +14,10 @@
     --picsim-success: #22c55e;
     --picsim-warning: #f59e0b;
     --picsim-danger: #ef4444;
-    --picsim-font: 'JetBrains Mono', 'Consolas', monospace;
+    /* Nessun font da CDN esterno (GDPR): solo font di sistema. JetBrains Mono
+       viene usato se l'utente ce l'ha installato o se lo si auto-ospita. */
+    --picsim-font: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Menlo',
+                   'Cascadia Mono', 'Consolas', 'DejaVu Sans Mono', monospace;
 }
 
 /* === BASE === */
@@ -416,6 +419,15 @@
 .picsim ::-webkit-scrollbar-track { background: var(--picsim-bg); }
 .picsim ::-webkit-scrollbar-thumb { background: var(--picsim-border); border-radius: 3px; }
 .picsim ::-webkit-scrollbar-thumb:hover { background: var(--picsim-text-dim); }
+
+/* Avviso reso al posto di un secondo simulatore nella stessa pagina */
+.picsim-notice {
+    padding: 12px 16px;
+    border-left: 3px solid #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    font-family: system-ui, sans-serif;
+    font-size: 14px;
+}
 
 /* === RESPONSIVE === */
 @media (max-width: 900px) {
