@@ -1,12 +1,16 @@
 <?php
 /**
  * Plugin Name: WebPicSimulator
- * Plugin URI: https://example.com/webpicsimulator
+ * Plugin URI: https://www.davidebertolino.it/progetti/pic-simulator/
  * Description: Simulatore web-based per microcontrollori PIC16F84A. Uso: shortcode [pic_simulator]
  * Version: 1.0.1
  * Author: Prof. D. Bertolino
- * License: MIT
+ * Author URI: https://www.davidebertolino.it
+ * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: webpicsimulator
+ * Requires at least: 5.8
+ * Requires PHP: 7.4
  */
 
 // Impedisci accesso diretto
@@ -18,6 +22,13 @@ if (!defined('ABSPATH')) {
 define('PICSIM_VERSION', '1.0.1');
 define('PICSIM_PATH', plugin_dir_path(__FILE__));
 define('PICSIM_URL', plugin_dir_url(__FILE__));
+define('PICSIM_PLUGIN_FILE', __FILE__);
+
+/* -------------------------------------------------------------------------
+ * GitHub Auto-Updater (componente condiviso)
+ * ---------------------------------------------------------------------- */
+require_once PICSIM_PATH . 'inc/class-updater.php';
+new DB_GitHub_Updater(PICSIM_PLUGIN_FILE, 'dadebertolino', 'pic-simulator');
 
 /**
  * Classe principale plugin
@@ -28,6 +39,9 @@ class WebPicSimulator {
     
     /** Un solo simulatore per pagina: vedi render_shortcode(). */
     private static $rendered = false;
+    
+    /** Hook della pagina di amministrazione, per l'enqueue mirato. */
+    private $admin_hook = '';
     
     public static function get_instance() {
         if (null === self::$instance) {
@@ -40,6 +54,7 @@ class WebPicSimulator {
         add_action('wp_enqueue_scripts', [$this, 'register_assets']);
         add_shortcode('pic_simulator', [$this, 'render_shortcode']);
         add_action('admin_menu', [$this, 'admin_menu']);
+        add_action('admin_enqueue_scripts', [$this, 'admin_assets']);
     }
     
     /**
@@ -146,7 +161,9 @@ class WebPicSimulator {
      * Menu amministrazione
      */
     public function admin_menu() {
-        add_options_page(
+        // L'hook restituito e' la chiave per caricare gli asset solo qui,
+        // invece di ricostruirlo a mano come stringa.
+        $this->admin_hook = add_options_page(
             'WebPicSimulator',
             'WebPicSimulator',
             'manage_options',
@@ -155,55 +172,24 @@ class WebPicSimulator {
         );
     }
     
+    /**
+     * Design system condiviso, caricato solo sulla pagina del plugin.
+     */
+    public function admin_assets($hook) {
+        if ($hook !== $this->admin_hook) {
+            return;
+        }
+        
+        wp_enqueue_style(
+            'db-admin-ui',
+            PICSIM_URL . 'assets/css/db-admin-ui.css',
+            [],
+            '1.0.0'
+        );
+    }
+    
     public function admin_page() {
-        ?>
-        <div class="wrap">
-            <h1>WebPicSimulator <small>v<?php echo PICSIM_VERSION; ?></small></h1>
-            <p>by Prof. D. Bertolino</p>
-            
-            <h2>Uso</h2>
-            <p>Inserisci lo shortcode <code>[pic_simulator]</code> in una pagina.</p>
-            
-            <h3>Opzioni</h3>
-            <table class="form-table">
-                <tr>
-                    <th><code>height</code></th>
-                    <td>Altezza (default: 800px)</td>
-                </tr>
-                <tr>
-                    <th><code>fullwidth</code></th>
-                    <td>yes/no - Espande a tutto schermo (default: no)</td>
-                </tr>
-            </table>
-            <p><em>Nota:</em> e' possibile inserire un solo simulatore per pagina.</p>
-            
-            <h3>Esempi</h3>
-            <p><code>[pic_simulator]</code></p>
-            <p><code>[pic_simulator height="600px" fullwidth="yes"]</code></p>
-            
-            <h2>Funzionalità</h2>
-            <ul>
-                <li>✅ Simulatore PIC16F84A completo</li>
-                <li>✅ Editor ASM integrato</li>
-                <li>✅ Load/Save file da PC locale</li>
-                <li>✅ Pannelli: Registri, Stack, Memoria, PORTA/PORTB, TMR0</li>
-                <li>✅ Gestione interrupt</li>
-                <li>✅ Run, Step, Animate, Reset</li>
-                <li>✅ Breakpoints</li>
-            </ul>
-            
-            <h2>Shortcuts Tastiera</h2>
-            <ul>
-                <li><kbd>F5</kbd> - Run/Stop</li>
-                <li><kbd>F6</kbd> - Animate</li>
-                <li><kbd>F8</kbd> - Step</li>
-                <li><kbd>F9</kbd> - Toggle Breakpoint</li>
-                <li><kbd>Ctrl+S</kbd> - Save ASM</li>
-                <li><kbd>Ctrl+O</kbd> - Load ASM</li>
-                <li><kbd>Esc</kbd> - Stop</li>
-            </ul>
-        </div>
-        <?php
+        include PICSIM_PATH . 'templates/admin/settings.php';
     }
 }
 
