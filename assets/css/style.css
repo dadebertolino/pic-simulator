@@ -31,6 +31,8 @@
     position: relative;
 }
 .picsim *, .picsim *::before, .picsim *::after { box-sizing: border-box; }
+/* tabindex="-1": serve solo a ricevere le scorciatoie, non e' un controllo */
+.picsim:focus { outline: none; }
 
 .picsim--fullscreen {
     position: fixed !important;
@@ -405,6 +407,7 @@
 .picsim__status-dot--idle { background: var(--picsim-text-dim); }
 .picsim__status-dot--running { background: var(--picsim-success); animation: pulse 1s infinite; }
 .picsim__status-dot--success { background: var(--picsim-success); }
+.picsim__status-dot--warning { background: var(--picsim-warning); }
 .picsim__status-dot--error { background: var(--picsim-danger); }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 

@@ -26,6 +26,10 @@ class SimulatorUI {
         // Memory view
         this.memoryType = 'ram';
         
+        // Cella/campo attualmente aperto in editing: sospende il ridisegno
+        // periodico, che altrimenti lo distruggerebbe sotto le dita.
+        this.editing = null;
+        
         // Callbacks
         this.simulator.onUpdate = () => this.update();
         this.simulator.onBreakpoint = (addr) => this.onBreakpoint(addr);
@@ -54,6 +58,16 @@ class SimulatorUI {
         this.editor.addEventListener('input', () => this.onEditorChange());
         this.editor.addEventListener('scroll', () => this.syncScroll());
         this.editor.addEventListener('keydown', (e) => this.handleEditorKey(e));
+        
+        // Listener delegato: collegato una volta sola, sopravvive ai rebuild
+        // della colonna dei numeri di riga.
+        this.lineNumbers?.addEventListener('click', (e) => {
+            const el = e.target.closest('.picsim__line-num');
+            if (!el) return;
+            const addr = parseInt(el.dataset.addr);
+            if (!isNaN(addr)) this.toggleBreakpoint(addr);
+        });
+        
         this.updateLineNumbers();
     }
 
@@ -65,44 +79,57 @@ class SimulatorUI {
     updateLineNumbers() {
         if (!this.editor || !this.lineNumbers) return;
         
-        const lines = this.editor.value.split('\n');
-        const sourceMap = this.simulator.assemblyResult?.sourceMap || {};
-        const pcLine = this.simulator.getLineForAddress(this.cpu.PC);
+        const lineCount = this.editor.value.split('\n').length;
+        const result = this.simulator.assemblyResult;
         
+        // La struttura (quante righe, con quale indirizzo) dipende solo dal
+        // testo e dall'ultimo assemblaggio. Durante Run update() arriva a
+        // ~60 fps: ricostruirla ogni volta e' sprecato, e a ogni innerHTML
+        // gli input aperti perderebbero il focus.
+        if (lineCount !== this.lineNumCount || result !== this.lineNumResult) {
+            this.lineNumCount = lineCount;
+            this.lineNumResult = result;
+            this.renderLineNumbers(lineCount, result?.sourceMap || {});
+        }
+        
+        this.refreshLineNumberStates();
+        this.updateLineHighlight();
+    }
+
+    renderLineNumbers(lineCount, sourceMap) {
         const lineToAddr = {};
         for (const [addr, line] of Object.entries(sourceMap)) {
             lineToAddr[line] = parseInt(addr);
         }
         
         let html = '';
-        for (let i = 1; i <= lines.length; i++) {
+        for (let i = 1; i <= lineCount; i++) {
             const addr = lineToAddr[i];
-            const hasBreakpoint = this.breakpoints.has(addr);
-            const isCurrent = (pcLine === i && this.simulator.assemblyResult?.success);
-            const hasError = this.errorLines.includes(i);
-            
-            let cls = 'picsim__line-num';
-            if (hasBreakpoint) cls += ' picsim__line-num--bp';
-            if (isCurrent) cls += ' picsim__line-num--current';
-            if (hasError) cls += ' picsim__line-num--error';
-            
             const display = addr !== undefined 
                 ? addr.toString(16).toUpperCase().padStart(3, '0')
                 : i.toString().padStart(3, ' ');
             
-            html += `<span class="${cls}" data-line="${i}" data-addr="${addr ?? ''}">${display}</span>\n`;
+            html += `<span class="picsim__line-num" data-line="${i}" data-addr="${addr ?? ''}">${display}</span>\n`;
         }
         
         this.lineNumbers.innerHTML = html;
+        this.lineNumEls = Array.from(this.lineNumbers.querySelectorAll('.picsim__line-num'));
+    }
+
+    refreshLineNumberStates() {
+        if (!this.lineNumEls) return;
         
-        this.lineNumbers.querySelectorAll('.picsim__line-num').forEach(el => {
-            el.addEventListener('click', () => {
-                const addr = parseInt(el.dataset.addr);
-                if (!isNaN(addr)) this.toggleBreakpoint(addr);
-            });
-        });
+        const pcLine = this.simulator.getLineForAddress(this.cpu.PC);
+        const assembled = !!this.simulator.assemblyResult?.success;
         
-        this.updateLineHighlight();
+        for (const el of this.lineNumEls) {
+            const line = parseInt(el.dataset.line);
+            const addr = parseInt(el.dataset.addr);
+            
+            el.classList.toggle('picsim__line-num--bp', !isNaN(addr) && this.breakpoints.has(addr));
+            el.classList.toggle('picsim__line-num--current', assembled && pcLine === line);
+            el.classList.toggle('picsim__line-num--error', this.errorLines.includes(line));
+        }
     }
 
     updateLineHighlight() {
@@ -112,7 +139,8 @@ class SimulatorUI {
         const pcLine = this.simulator.getLineForAddress(this.cpu.PC);
         if (pcLine && this.simulator.assemblyResult?.success) {
             highlight.style.display = 'block';
-            highlight.style.top = (10 + (pcLine - 1) * this.lineHeight - this.editor.scrollTop) + 'px';
+            // 8px = padding-top di .picsim__editor
+            highlight.style.top = (8 + (pcLine - 1) * this.lineHeight - this.editor.scrollTop) + 'px';
         } else {
             highlight.style.display = 'none';
         }
@@ -171,7 +199,24 @@ class SimulatorUI {
     }
 
     initKeyboard() {
+        this.container = document.getElementById('pic-simulator');
+        
+        // Un click su un'area non focalizzabile (pannelli, pin, sfondo)
+        // lascerebbe il focus sul body e disattiverebbe le scorciatoie:
+        // in quel caso lo spostiamo sul contenitore, che e' tabindex="-1".
+        this.container?.addEventListener('mousedown', (e) => {
+            if (!e.target.closest('input, textarea, select, button, a')) {
+                this.container.focus({ preventScroll: true });
+            }
+        });
+        
         document.addEventListener('keydown', (e) => {
+            // Le scorciatoie valgono solo quando il simulatore e' in uso.
+            // Il listener e' su document (serve per intercettare F5 ovunque
+            // dentro il widget), ma senza questa guardia il plugin rubava
+            // F5 e Ctrl+S all'intera pagina WordPress che lo ospita.
+            if (!this.isActive()) return;
+            
             const inEditor = document.activeElement === this.editor;
             
             if (e.key === 'F5') { e.preventDefault(); e.ctrlKey ? this.assemble() : (this.simulator.running || this.animating ? this.stop() : this.run()); }
@@ -184,6 +229,17 @@ class SimulatorUI {
             else if (e.ctrlKey && e.key === 'o') { e.preventDefault(); this.loadFile(); }
             else if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); this.assemble(); }
         });
+    }
+
+    /**
+     * Il simulatore ha il focus (o e' a schermo intero) e puo' quindi
+     * catturare le scorciatoie da tastiera.
+     */
+    isActive() {
+        if (!this.container) return false;
+        return this.container.contains(document.activeElement)
+            || document.fullscreenElement === this.container
+            || this.container.classList.contains('picsim--fullscreen');
     }
 
     // === ACTIONS ===
@@ -391,6 +447,9 @@ class SimulatorUI {
     editTris(el) {
         if (el.querySelector('input')) return;
         
+        // Blocca la riscrittura periodica del campo TRIS mentre e' aperto.
+        this.editing = { kind: 'tris', port: el.dataset.port };
+        
         const port = el.dataset.port;
         const trisAddr = port === 'A' ? 0x85 : 0x86;
         const currentVal = this.cpu.ram[trisAddr];
@@ -406,7 +465,17 @@ class SimulatorUI {
         input.focus();
         input.select();
         
+        let finished = false;
+        
+        const closeEdit = () => {
+            this.editing = null;
+            this.updatePort(port);
+        };
+        
         const saveValue = () => {
+            if (finished) return;
+            finished = true;
+            
             let val = parseInt(input.value, 16);
             if (isNaN(val)) val = currentVal;
             val = Math.max(0, Math.min(255, val));
@@ -415,14 +484,14 @@ class SimulatorUI {
             if (port === 'A') val &= 0x1F;
             
             this.cpu.ram[trisAddr] = val;
-            this.updatePort(port);
+            closeEdit();
             this.setStatus(`TRIS${port} = ${val.toString(16).toUpperCase().padStart(2, '0')} (${val.toString(2).padStart(8, '0')})`, 'success');
         };
         
         input.addEventListener('blur', saveValue);
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') { e.preventDefault(); saveValue(); }
-            else if (e.key === 'Escape') { e.preventDefault(); this.updatePort(port); }
+            else if (e.key === 'Escape') { e.preventDefault(); finished = true; closeEdit(); }
         });
     }
 
@@ -438,7 +507,10 @@ class SimulatorUI {
         if (valueEl) valueEl.textContent = pins.toString(16).toUpperCase().padStart(2, '0');
         
         const trisEl = document.getElementById(`tris${port.toLowerCase()}-value`);
-        if (trisEl) trisEl.textContent = tris.toString(16).toUpperCase().padStart(2, '0');
+        const trisBeingEdited = this.editing?.kind === 'tris' && this.editing.port === port;
+        if (trisEl && !trisBeingEdited) {
+            trisEl.textContent = tris.toString(16).toUpperCase().padStart(2, '0');
+        }
         
         document.querySelectorAll(`#port${port.toLowerCase()}-pins .picsim__pin`).forEach(pinEl => {
             const bit = parseInt(pinEl.dataset.bit);
@@ -468,6 +540,13 @@ class SimulatorUI {
                 this.updateMemoryView();
             });
         });
+        
+        // Listener delegato sul contenitore, che sopravvive ai rebuild della griglia.
+        document.getElementById('memory-view')?.addEventListener('click', (e) => {
+            const cell = e.target.closest('.picsim__mem-val--editable');
+            if (cell) this.editMemoryCell(cell);
+        });
+        
         this.updateMemoryView();
     }
 
@@ -475,34 +554,67 @@ class SimulatorUI {
         const container = document.getElementById('memory-view');
         if (!container) return;
         
+        // Durante Run update() arriva a ~60 fps. Ricostruire la griglia a ogni
+        // giro distruggerebbe la cella aperta in editing e sprecherebbe lavoro:
+        // la struttura si ricostruisce solo quando cambia davvero, poi si
+        // aggiornano i soli valori.
+        if (this.editing) return;
+        
+        const pc = this.cpu.PC;
+        const windowStart = this.programWindowStart(pc);
+        const structureKey = this.memoryType === 'program'
+            ? 'program:' + windowStart
+            : this.memoryType;
+        
+        if (structureKey !== this.memoryStructureKey) {
+            this.memoryStructureKey = structureKey;
+            this.buildMemoryView(container, windowStart);
+        }
+        
+        this.refreshMemoryValues(pc);
+    }
+
+    /**
+     * Inizio della finestra di 17 istruzioni mostrata nella vista Program.
+     * Resta ferma finche' il PC e' visibile: si ri-centra solo quando esce,
+     * cosi' la lista non sobbalza a ogni step e non va ricostruita.
+     */
+    programWindowStart(pc) {
+        const ROWS = 17;
+        const maxStart = Math.max(0, 1024 - ROWS);
+        const current = this.progWindowStart;
+        
+        if (current !== undefined && pc >= current && pc < current + ROWS) {
+            return current;
+        }
+        
+        this.progWindowStart = Math.min(maxStart, Math.max(0, pc - 4));
+        return this.progWindowStart;
+    }
+
+    buildMemoryView(container, windowStart) {
         let html = '<div class="picsim__mem-grid">';
         
-        if (this.memoryType === 'ram') {
-            for (let row = 0; row < 8; row++) {
-                const base = 0x0C + row * 8;
-                html += `<div class="picsim__mem-row"><span class="picsim__mem-addr">${base.toString(16).toUpperCase().padStart(2, '0')}</span>`;
-                for (let col = 0; col < 8 && base + col <= 0x4F; col++) {
-                    const addr = base + col;
-                    const val = this.cpu.ram[addr].toString(16).toUpperCase().padStart(2, '0');
-                    html += `<span class="picsim__mem-val picsim__mem-val--editable" data-type="ram" data-addr="${addr}" title="Click per editare">${val}</span>`;
-                }
-                html += '</div>';
+        if (this.memoryType === 'program') {
+            const last = Math.min(1023, windowStart + 16);
+            
+            for (let addr = windowStart; addr <= last; addr++) {
+                html += `<div class="picsim__mem-instr" data-addr="${addr}">`
+                     +  `<span>${addr.toString(16).toUpperCase().padStart(3, '0')}</span>`
+                     +  '<span class="picsim__mem-word"></span>'
+                     +  '<span class="picsim__mem-disasm"></span></div>';
             }
-        } else if (this.memoryType === 'program') {
-            const pc = this.cpu.PC;
-            for (let addr = Math.max(0, pc - 4); addr <= Math.min(1023, pc + 12); addr++) {
-                const word = this.cpu.programMemory[addr];
-                const cur = addr === pc ? ' picsim__mem-instr--current' : '';
-                html += `<div class="picsim__mem-instr${cur}"><span>${addr.toString(16).toUpperCase().padStart(3, '0')}</span><span>${word.toString(16).toUpperCase().padStart(4, '0')}</span><span>${PIC16Assembler.disassemble(word, addr)}</span></div>`;
-            }
-        } else if (this.memoryType === 'eeprom') {
+        } else {
+            const isRam = (this.memoryType === 'ram');
+            const origin = isRam ? 0x0C : 0x00;
+            const type = isRam ? 'ram' : 'eeprom';
+            
             for (let row = 0; row < 8; row++) {
-                const base = row * 8;
+                const base = origin + row * 8;
                 html += `<div class="picsim__mem-row"><span class="picsim__mem-addr">${base.toString(16).toUpperCase().padStart(2, '0')}</span>`;
-                for (let col = 0; col < 8; col++) {
+                for (let col = 0; col < 8 && base + col <= (isRam ? 0x4F : 0x3F); col++) {
                     const addr = base + col;
-                    const val = this.cpu.eeprom[addr].toString(16).toUpperCase().padStart(2, '0');
-                    html += `<span class="picsim__mem-val picsim__mem-val--editable" data-type="eeprom" data-addr="${addr}" title="Click per editare">${val}</span>`;
+                    html += `<span class="picsim__mem-val picsim__mem-val--editable" data-type="${type}" data-addr="${addr}" title="Click per editare"></span>`;
                 }
                 html += '</div>';
             }
@@ -511,15 +623,36 @@ class SimulatorUI {
         html += '</div>';
         container.innerHTML = html;
         
-        // Aggiungi event listeners per editing
-        container.querySelectorAll('.picsim__mem-val--editable').forEach(cell => {
-            cell.addEventListener('click', (e) => this.editMemoryCell(e.target));
-        });
+        this.memoryCells = Array.from(container.querySelectorAll('.picsim__mem-val'));
+        this.memoryRows = Array.from(container.querySelectorAll('.picsim__mem-instr'));
+    }
+
+    refreshMemoryValues(pc) {
+        const hex = (v, n) => v.toString(16).toUpperCase().padStart(n, '0');
+        
+        if (this.memoryType === 'program') {
+            for (const row of this.memoryRows || []) {
+                const addr = parseInt(row.dataset.addr);
+                const word = this.cpu.programMemory[addr];
+                row.classList.toggle('picsim__mem-instr--current', addr === pc);
+                row.querySelector('.picsim__mem-word').textContent = hex(word, 4);
+                row.querySelector('.picsim__mem-disasm').textContent = PIC16Assembler.disassemble(word, addr);
+            }
+            return;
+        }
+        
+        const source = this.memoryType === 'ram' ? this.cpu.ram : this.cpu.eeprom;
+        for (const cell of this.memoryCells || []) {
+            cell.textContent = hex(source[parseInt(cell.dataset.addr)], 2);
+        }
     }
 
     editMemoryCell(cell) {
         // Se già in editing, esci
         if (cell.querySelector('input')) return;
+        
+        // Blocca il ridisegno periodico finche' la cella e' aperta.
+        this.editing = { kind: 'memory' };
         
         const type = cell.dataset.type;
         const addr = parseInt(cell.dataset.addr);
@@ -538,8 +671,20 @@ class SimulatorUI {
         input.focus();
         input.select();
         
-        // Handler per salvare
+        // Enter salva e rimuove l'input, il che scatena anche blur: senza
+        // questa guardia saveValue girerebbe due volte.
+        let finished = false;
+        
+        const closeEdit = () => {
+            this.editing = null;
+            this.memoryStructureKey = null; // forza il rebuild della griglia
+            this.updateMemoryView();
+        };
+        
         const saveValue = () => {
+            if (finished) return;
+            finished = true;
+            
             let val = parseInt(input.value, 16);
             if (isNaN(val)) val = currentVal;
             val = Math.max(0, Math.min(255, val)); // Clamp 0-255
@@ -550,7 +695,7 @@ class SimulatorUI {
                 this.cpu.eeprom[addr] = val;
             }
             
-            this.updateMemoryView();
+            closeEdit();
             this.setStatus(`${type.toUpperCase()}[${addr.toString(16).toUpperCase()}] = ${val.toString(16).toUpperCase().padStart(2, '0')}`, 'success');
         };
         
@@ -562,7 +707,8 @@ class SimulatorUI {
                 saveValue();
             } else if (e.key === 'Escape') {
                 e.preventDefault();
-                this.updateMemoryView();
+                finished = true;
+                closeEdit();
             }
         });
     }

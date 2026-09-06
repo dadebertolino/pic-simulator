@@ -6,7 +6,7 @@
 defined('ABSPATH') || exit;
 ?>
 
-<div id="pic-simulator" class="picsim" style="<?php echo $style; ?>">
+<div id="pic-simulator" class="picsim" tabindex="-1" style="<?php echo $style; ?>">
     
     <!-- HEADER -->
     <header class="picsim__header">
@@ -292,21 +292,45 @@ document.addEventListener('DOMContentLoaded', function() {
         if (iconComp) iconComp.style.display = fs ? 'block' : 'none';
     }
     
+    // Se requestFullscreen fallisce si ripiega sulla classe CSS. In quel caso
+    // document.fullscreenElement resta null, quindi lo stato va tracciato a
+    // parte: altrimenti il secondo click ritenta l'ingresso invece di uscire.
+    let cssFullscreen = false;
+    
     function toggleFS() {
-        if (!document.fullscreenElement) {
-            container.requestFullscreen().catch(() => {
-                container.classList.toggle('picsim--fullscreen');
-                setFullscreen(container.classList.contains('picsim--fullscreen'));
-            });
-        } else {
+        if (document.fullscreenElement) {
             document.exitFullscreen();
+            return;
         }
+        if (cssFullscreen) {
+            cssFullscreen = false;
+            setFullscreen(false);
+            return;
+        }
+        // Se l'API manca del tutto (Safari datati, iframe senza permesso)
+        // chiamarla solleverebbe un TypeError invece di ripiegare.
+        if (!container.requestFullscreen) {
+            cssFullscreen = true;
+            setFullscreen(true);
+            return;
+        }
+        container.requestFullscreen().catch(() => {
+            cssFullscreen = true;
+            setFullscreen(true);
+        });
     }
     
     btnFS?.addEventListener('click', toggleFS);
     btnFS2?.addEventListener('click', toggleFS);
-    document.addEventListener('fullscreenchange', () => setFullscreen(!!document.fullscreenElement));
-    document.addEventListener('keydown', e => { if (e.key === 'F11') { e.preventDefault(); toggleFS(); } });
+    document.addEventListener('fullscreenchange', () => {
+        cssFullscreen = false;
+        setFullscreen(!!document.fullscreenElement);
+    });
+    // Come per le altre scorciatoie: solo quando il simulatore e' in uso,
+    // altrimenti F11 verrebbe rubato all'intera pagina che ospita il plugin.
+    document.addEventListener('keydown', e => {
+        if (e.key === 'F11' && ui.isActive()) { e.preventDefault(); toggleFS(); }
+    });
     
     // === MINI TOOLBAR ===
     [['btn-new2','btn-new'],['btn-assemble2','btn-assemble'],['btn-run2','btn-run'],['btn-animate2','btn-animate'],
