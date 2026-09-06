@@ -1,0 +1,73 @@
+<?xml version="1.0"?>
+<ruleset name="WebPicSimulator">
+    <description>WPCS pragmatico: regole sostanziali (sicurezza, i18n), stile del progetto preservato.</description>
+
+    <file>.</file>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/.git/*</exclude-pattern>
+    <!-- File condiviso verbatim tra tutti i plugin DB (stile proprio, versionato
+         a parte): trattato come vendored. NB: non usare <rule ref="Categoria">
+         per escluderlo — importerebbe l'intera categoria di sniff. -->
+    <exclude-pattern>inc/class-updater\.php</exclude-pattern>
+
+    <arg value="ps"/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+    <arg name="parallel" value="4"/>
+
+    <!-- Compatibilità dichiarata nel plugin header. -->
+    <config name="minimum_wp_version" value="5.8"/>
+    <config name="testVersion" value="7.4-"/>
+
+    <rule ref="WordPress-Extra">
+        <!-- Stile del progetto: 4 spazi, niente spazi interni alle parentesi, niente Yoda -->
+        <exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
+        <exclude name="Generic.WhiteSpace.ScopeIndent"/>
+        <exclude name="Generic.WhiteSpace.ArbitraryParenthesesSpacing"/>
+        <exclude name="Generic.Formatting.MultipleStatementAlignment"/>
+        <exclude name="Generic.Formatting.DisallowMultipleStatements"/>
+        <exclude name="Generic.Functions.FunctionCallArgumentSpacing"/>
+        <exclude name="Generic.ControlStructures.InlineControlStructure"/>
+        <exclude name="PEAR.Functions.FunctionCallSignature"/>
+        <exclude name="PSR2.Classes.ClassDeclaration"/>
+        <exclude name="PSR2.ControlStructures.SwitchDeclaration"/>
+        <exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing"/>
+        <exclude name="Squiz.Functions.MultiLineFunctionDeclaration"/>
+        <exclude name="Squiz.Strings.DoubleQuoteUsage"/>
+        <exclude name="Squiz.PHP.EmbeddedPhp"/>
+        <exclude name="Squiz.WhiteSpace.SuperfluousWhitespace"/>
+        <exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
+        <exclude name="WordPress.WhiteSpace.OperatorSpacing"/>
+        <exclude name="WordPress.WhiteSpace.CastStructureSpacing"/>
+        <exclude name="WordPress.Arrays.ArrayDeclarationSpacing"/>
+        <exclude name="WordPress.Arrays.ArrayIndentation"/>
+        <exclude name="WordPress.Arrays.ArrayKeySpacingRestrictions"/>
+        <exclude name="WordPress.Arrays.MultipleStatementAlignment"/>
+        <exclude name="WordPress.PHP.YodaConditions"/>
+        <exclude name="NormalizedArrays.Arrays.ArrayBraceSpacing"/>
+        <exclude name="NormalizedArrays.Arrays.CommaAfterLast"/>
+        <exclude name="Universal.WhiteSpace.PrecisionAlignment"/>
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+        <exclude name="Universal.Operators.DisallowStandalonePostIncrementDecrement"/>
+        <exclude name="Universal.Operators.DisallowShortTernary"/>
+
+        <!-- Commenti in italiano: le regole di formato docblock inglesi
+             producono solo rumore. -->
+        <exclude name="Squiz.Commenting"/>
+        <exclude name="Generic.Commenting"/>
+
+        <!-- Convenzione naming file del progetto (class-updater.php) -->
+        <exclude name="WordPress.Files.FileName"/>
+    </rule>
+
+    <!-- uninstall.php ripulisce i transient dell'updater: non esiste una API
+         WordPress per cancellare transient per prefisso, la query diretta e'
+         l'unica strada. Nessun input utente nelle stringhe. -->
+    <rule ref="WordPress.DB.DirectDatabaseQuery">
+        <exclude-pattern>uninstall\.php</exclude-pattern>
+    </rule>
+    <rule ref="WordPress.DB.PreparedSQL">
+        <exclude-pattern>uninstall\.php</exclude-pattern>
+    </rule>
+</ruleset>

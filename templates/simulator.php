@@ -6,7 +6,7 @@
 defined('ABSPATH') || exit;
 ?>
 
-<div id="pic-simulator" class="picsim" tabindex="-1" style="<?php echo $style; ?>">
+<div id="pic-simulator" class="picsim" tabindex="-1" style="<?php echo esc_attr($style); ?>">
     
     <!-- HEADER -->
     <header class="picsim__header">
@@ -250,7 +250,7 @@ defined('ABSPATH') || exit;
         
         <!-- Copyright (sempre visibile, centrato) -->
         <div class="picsim__footer-center">
-            © <?php echo date('Y'); ?> Davide "the Prof." Bertolino
+            © <?php echo esc_html(gmdate('Y')); ?> Davide "the Prof." Bertolino
             <span class="picsim__footer-sep">—</span>
             <a href="https://www.davidebertolino.it" target="_blank">www.davidebertolino.it</a>
             <span class="picsim__footer-sep">—</span>
@@ -258,7 +258,7 @@ defined('ABSPATH') || exit;
         </div>
         
         <!-- Versione (sempre visibile, destra) -->
-        <div class="picsim__footer-right">WebPicSimulator v<?php echo PICSIM_VERSION; ?></div>
+        <div class="picsim__footer-right">WebPicSimulator v<?php echo esc_html(PICSIM_VERSION); ?></div>
     </footer>
     
     <input type="file" id="file-input" accept=".asm,.txt,.inc" style="display:none">
@@ -385,7 +385,7 @@ function initPicSim() {
     document.getElementById('examples-select')?.addEventListener('change', function() { loadEx(this.value); this.value = ''; });
     document.getElementById('examples-select2')?.addEventListener('change', function() { loadEx(this.value); this.value = ''; });
     
-    console.log('WebPicSimulator v<?php echo PICSIM_VERSION; ?>');
+    console.log('WebPicSimulator v<?php echo esc_js(PICSIM_VERSION); ?>');
 }
 })();
 </script>

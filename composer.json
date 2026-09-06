@@ -1,0 +1,30 @@
+{
+    "name": "dadebertolino/pic-simulator",
+    "description": "Simulatore PIC16F84A per WordPress: editor Assembly, assemblatore e debugger nel browser, per uso didattico.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Davide Bertolino",
+            "homepage": "https://davidebertolino.it"
+        }
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "wp-coding-standards/wpcs": "^3.2",
+        "phpcompatibility/phpcompatibility-wp": "^2.1"
+    },
+    "scripts": {
+        "lint": "find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 -P4 php -l",
+        "phpcs": "phpcs --standard=phpcs.xml.dist",
+        "phpcbf": "phpcbf --standard=phpcs.xml.dist"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    }
+}

@@ -144,9 +144,10 @@ class WebPicSimulator {
             'fullwidth' => 'no'
         ], $atts);
         
-        $height = esc_attr($atts['height']);
+        $height = $atts['height'];
         $is_fullwidth = ($atts['fullwidth'] === 'yes');
         
+        // Composto grezzo qui, escapato all'output dal template.
         $style = "height: {$height};";
         if ($is_fullwidth) {
             $style .= " width: 100vw; margin-left: calc(-50vw + 50%);";
