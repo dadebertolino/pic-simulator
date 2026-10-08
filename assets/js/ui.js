@@ -23,6 +23,9 @@ class SimulatorUI {
         // Breakpoints
         this.breakpoints = new Set();
         
+        // Nome del sorgente: quello del file caricato, usato da Save ed export HEX.
+        this.fileName = 'programma.asm';
+        
         // Memory view
         this.memoryType = 'ram';
         
@@ -34,6 +37,7 @@ class SimulatorUI {
         this.simulator.onUpdate = () => this.update();
         this.simulator.onBreakpoint = (addr) => this.onBreakpoint(addr);
         this.simulator.onError = (msg) => this.showError(msg);
+        this.simulator.onStepOverDone = () => this.onStepOverDone();
         // Durante Run update() ridisegna le porte a ogni tick: aggiornarle
         // anche a ogni scrittura significherebbe migliaia di ridisegni al
         // secondo in un loop che scrive su PORTB.
@@ -50,7 +54,7 @@ class SimulatorUI {
         this.initKeyboard();
         this.loadSampleCode();
         this.update();
-        this.setStatus('Ready', 'idle');
+        this.setStatus('Pronto', 'idle');
     }
 
     // === EDITOR ===
@@ -189,6 +193,7 @@ class SimulatorUI {
         document.getElementById('btn-clear-breakpoints')?.addEventListener('click', () => this.clearAllBreakpoints());
         document.getElementById('btn-load')?.addEventListener('click', () => this.loadFile());
         document.getElementById('btn-save')?.addEventListener('click', () => this.saveFile());
+        document.getElementById('btn-hex')?.addEventListener('click', () => this.exportHex());
         document.getElementById('file-input')?.addEventListener('change', (e) => this.handleFileLoad(e));
         
         // Velocita' di Run: due select (toolbar completa e mini) sincronizzate.
@@ -199,15 +204,31 @@ class SimulatorUI {
             this.simulator.setSpeedFactor(value === 'max' ? Infinity : parseFloat(value));
         }));
         
-        const speedSlider = document.getElementById('speed-slider');
-        if (speedSlider) {
-            speedSlider.addEventListener('input', (e) => {
-                const speeds = [1000, 500, 100, 50, 10];
-                const labels = ['1 Hz', '2 Hz', '10 Hz', '20 Hz', '100 Hz'];
-                const val = parseInt(e.target.value) - 1;
-                this.animateSpeed = speeds[val] || 100;
-                document.getElementById('speed-value').textContent = labels[val] || '10 Hz';
-            });
+        // Velocita' di Animate: due slider (toolbar completa e mini) sincronizzati.
+        const sliders = ['speed-slider', 'speed-slider2'].map(id => document.getElementById(id)).filter(Boolean);
+        sliders.forEach(slider => slider.addEventListener('input', () => this.setAnimateSpeed(slider.value, sliders)));
+    }
+
+    /**
+     * Slider da 1 a 5: 1, 2, 10, 20, 100 istruzioni al secondo. Se Animate
+     * e' in corso riparte subito al nuovo ritmo.
+     */
+    setAnimateSpeed(position, sliders = []) {
+        const hz = [1, 2, 10, 20, 100][parseInt(position, 10) - 1] || 10;
+        this.animateSpeed = 1000 / hz;
+        
+        sliders.forEach(slider => {
+            slider.value = position;
+            slider.setAttribute('aria-valuetext', `${hz} istruzion${hz === 1 ? 'e' : 'i'} al secondo`);
+        });
+        ['speed-value', 'speed-value2'].forEach(id => {
+            const label = document.getElementById(id);
+            if (label) label.textContent = hz + ' Hz';
+        });
+        
+        if (this.animating) {
+            clearInterval(this.animateInterval);
+            this.animateInterval = setInterval(() => this.animateTick(), this.animateSpeed);
         }
     }
 
@@ -231,16 +252,18 @@ class SimulatorUI {
             if (!this.isActive()) return;
             
             const inEditor = document.activeElement === this.editor;
+            // Su Mac le scorciatoie usano Cmd: Ctrl+S resterebbe al browser.
+            const mod = e.ctrlKey || e.metaKey;
             
-            if (e.key === 'F5') { e.preventDefault(); e.ctrlKey ? this.assemble() : (this.simulator.running || this.animating ? this.stop() : this.run()); }
+            if (e.key === 'F5') { e.preventDefault(); mod ? this.assemble() : (this.simulator.running || this.animating ? this.stop() : this.run()); }
             else if (e.key === 'F6') { e.preventDefault(); this.toggleAnimate(); }
             else if (e.key === 'F8' && !inEditor) { e.preventDefault(); this.step(); }
             else if (e.key === 'F10' && !inEditor) { e.preventDefault(); this.stepOver(); }
             else if (e.key === 'Escape') { e.preventDefault(); this.stop(); }
-            else if (e.ctrlKey && e.key === 'n') { e.preventDefault(); this.newProgram(); }
-            else if (e.ctrlKey && e.key === 's') { e.preventDefault(); this.saveFile(); }
-            else if (e.ctrlKey && e.key === 'o') { e.preventDefault(); this.loadFile(); }
-            else if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); this.assemble(); }
+            else if (mod && e.key === 'n') { e.preventDefault(); this.newProgram(); }
+            else if (mod && e.key === 's') { e.preventDefault(); this.saveFile(); }
+            else if (mod && e.key === 'o') { e.preventDefault(); this.loadFile(); }
+            else if (mod && e.key === 'Enter') { e.preventDefault(); this.assemble(); }
         });
     }
 
@@ -262,11 +285,11 @@ class SimulatorUI {
         this.clearErrors();
         const result = this.simulator.loadSource(this.getSource());
         if (result.success) {
-            this.setStatus('Assembled: ' + result.programMemory.length + ' words', 'success');
+            this.setStatus(`Assemblato: ${result.programMemory.length} parole`, 'success');
             this.simulator.reset();
         } else {
             this.showAssemblyErrors(result.errors);
-            this.setStatus('Assembly failed', 'error');
+            this.setStatus(`Errori di assemblaggio: ${result.errors.length}`, 'error');
         }
         this.update();
     }
@@ -275,7 +298,7 @@ class SimulatorUI {
         if (!this.simulator.assemblyResult?.success) { this.assemble(); if (!this.simulator.assemblyResult?.success) return; }
         this.stopAnimate();
         this.simulator.run();
-        this.setStatus('Running...', 'running');
+        this.setStatus('In esecuzione...', 'running');
         this.updateButtons(true);
     }
 
@@ -285,14 +308,16 @@ class SimulatorUI {
         if (!this.simulator.assemblyResult?.success) { this.assemble(); if (!this.simulator.assemblyResult?.success) return; }
         this.simulator.stop();
         this.animating = true;
-        this.setStatus('Animating...', 'running');
+        this.setStatus('Animate in corso...', 'running');
         this.updateButtons(true);
         
-        this.animateInterval = setInterval(() => {
-            this.simulator.step();
-            this.update();
-            if (this.breakpoints.has(this.cpu.PC)) { this.stopAnimate(); this.onBreakpoint(this.cpu.PC); }
-        }, this.animateSpeed);
+        this.animateInterval = setInterval(() => this.animateTick(), this.animateSpeed);
+    }
+
+    animateTick() {
+        this.simulator.step();
+        this.update();
+        if (this.breakpoints.has(this.cpu.PC)) { this.stopAnimate(); this.onBreakpoint(this.cpu.PC); }
     }
 
     stopAnimate() {
@@ -304,7 +329,7 @@ class SimulatorUI {
     stop() {
         this.stopAnimate();
         this.simulator.stop();
-        this.setStatus('Stopped', 'idle');
+        this.setStatus('Fermo', 'idle');
         this.updateButtons(false);
         this.update();
     }
@@ -314,25 +339,35 @@ class SimulatorUI {
         this.stopAnimate();
         this.simulator.stop();
         this.simulator.step();
-        this.setStatus('Step', 'idle');
-        this.update();
-        const pcLine = this.simulator.getLineForAddress(this.cpu.PC);
-        if (pcLine) this.scrollToLine(pcLine);
+        this.afterStep('Step');
     }
 
     stepOver() {
-        const opcode = this.cpu.programMemory[this.cpu.PC];
-        if ((opcode & 0x3800) === 0x2000) { // CALL
-            const nextAddr = this.cpu.PC + 1;
-            const maxCycles = this.cpu.cycles + 10000;
-            this.simulator.step();
-            while (this.cpu.PC !== nextAddr && this.cpu.cycles < maxCycles && !this.breakpoints.has(this.cpu.PC)) {
-                this.simulator.step();
-            }
-            this.update();
+        if (!this.simulator.assemblyResult?.success) { this.assemble(); if (!this.simulator.assemblyResult?.success) return; }
+        if (this.simulator.running) return;
+        this.stopAnimate();
+        
+        if (this.simulator.stepOver() === 'call') {
+            // La subroutine gira nel ciclo di Run: i pulsanti restano quelli di Run
+            // finche' onStepOverDone o un breakpoint non la fermano.
+            this.setStatus('Step Over in corso...', 'running');
+            this.updateButtons(true);
         } else {
-            this.step();
+            this.afterStep('Step');
         }
+    }
+
+    onStepOverDone() {
+        this.updateButtons(false);
+        this.afterStep('Step Over');
+    }
+
+    /** Stato, ridisegno e riga corrente in vista dopo uno Step o uno Step Over. */
+    afterStep(label) {
+        this.setStatus(label, 'idle');
+        this.update();
+        const pcLine = this.simulator.getLineForAddress(this.cpu.PC);
+        if (pcLine) this.scrollToLine(pcLine);
     }
 
     reset() { this.stop(); this.simulator.reset(); this.setStatus('Reset', 'idle'); this.update(); }
@@ -355,22 +390,44 @@ class SimulatorUI {
 
     onBreakpoint(addr) {
         this.stop();
-        this.setStatus('Breakpoint @ 0x' + addr.toString(16).toUpperCase().padStart(3, '0'), 'warning');
+        this.setStatus('Breakpoint a 0x' + addr.toString(16).toUpperCase().padStart(3, '0'), 'warning');
         const line = this.simulator.getLineForAddress(addr);
         if (line) this.scrollToLine(line);
     }
 
+    /**
+     * Elenco dei breakpoint. Si ricostruisce solo quando cambia: rifarlo a
+     * ogni update() (60 volte al secondo durante Run) sostituiva il
+     * pulsante tra mousedown e mouseup, e il click andava perso.
+     */
     updateBreakpointsList() {
         const list = document.getElementById('breakpoints-list');
         if (!list) return;
-        if (this.breakpoints.size === 0) { list.innerHTML = '<div class="picsim__hint">Click sui numeri di riga</div>'; return; }
+        
+        const key = Array.from(this.breakpoints).sort((a, b) => a - b).join(',');
+        if (key === this.breakpointsKey) return;
+        this.breakpointsKey = key;
+        
+        if (!this.breakpointsListBound) {
+            this.breakpointsListBound = true;
+            list.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-addr]');
+                if (btn) this.toggleBreakpoint(parseInt(btn.dataset.addr, 10));
+            });
+        }
+        
+        if (this.breakpoints.size === 0) {
+            list.innerHTML = '<div class="picsim__hint">Click sui numeri di riga</div>';
+            return;
+        }
         
         let html = '';
-        this.breakpoints.forEach(addr => {
-            html += `<div class="picsim__bp-item"><span>0x${addr.toString(16).toUpperCase().padStart(3, '0')}</span><button class="picsim__btn-tiny" data-addr="${addr}">✕</button></div>`;
+        Array.from(this.breakpoints).sort((a, b) => a - b).forEach(addr => {
+            const hex = '0x' + addr.toString(16).toUpperCase().padStart(3, '0');
+            html += `<div class="picsim__bp-item"><span>${hex}</span>`
+                 +  `<button class="picsim__btn-tiny" data-addr="${addr}" aria-label="Rimuovi il breakpoint a ${hex}">✕</button></div>`;
         });
         list.innerHTML = html;
-        list.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => this.toggleBreakpoint(parseInt(btn.dataset.addr))));
     }
 
     // === NEW / LOAD / SAVE ===
@@ -378,6 +435,7 @@ class SimulatorUI {
     newProgram() {
         if (this.getSource().trim() && !confirm('Creare un nuovo programma? Il codice attuale andrà perso.')) return;
         this.fullReset();
+        this.fileName = 'programma.asm';
         this.setSource('; Nuovo programma PIC16F84A\n; Scrivi il tuo codice qui...\n\n    ORG 0x000\n\nMAIN:\n    ; Il tuo codice...\n    GOTO MAIN\n\n    END\n');
         this.setStatus('Nuovo programma', 'success');
     }
@@ -411,19 +469,36 @@ class SimulatorUI {
         reader.onload = (ev) => { 
             this.fullReset();
             this.setSource(ev.target.result); 
-            this.setStatus('Loaded: ' + file.name, 'success'); 
+            this.fileName = file.name;
+            this.setStatus('Caricato: ' + file.name, 'success'); 
         };
         reader.readAsText(file);
     }
 
-    saveFile() {
-        const blob = new Blob([this.getSource()], { type: 'text/plain' });
+    /** Scarica un file generato nel browser. */
+    download(name, text) {
+        const blob = new Blob([text], { type: 'text/plain' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'program.asm';
+        a.download = name;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(a.href);
-        this.setStatus('Saved: program.asm', 'success');
+        a.remove();
+        // Revocare subito l'URL puo' annullare il download in alcuni browser.
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    saveFile() {
+        this.download(this.fileName, this.getSource());
+        this.setStatus('Salvato: ' + this.fileName, 'success');
+    }
+
+    /** Intel HEX del programma, come lo produrrebbe MPASM per il programmatore. */
+    exportHex() {
+        if (!this.simulator.assemblyResult?.success) { this.assemble(); if (!this.simulator.assemblyResult?.success) return; }
+        const name = this.fileName.replace(/\.[^.]*$/, '') + '.hex';
+        this.download(name, this.simulator.exportHex() + '\n');
+        this.setStatus('Esportato: ' + name, 'success');
     }
 
     // === PORTS ===
@@ -443,7 +518,7 @@ class SimulatorUI {
                     const updated = port === 'A' ? this.cpu.externalPortA : this.cpu.externalPortB;
                     this.setStatus(`R${port}${bit} = ${(updated & (1 << bit)) ? 1 : 0}`, 'success');
                 } else {
-                    this.setStatus(`R${port}${bit} è configurato come OUTPUT`, 'warning');
+                    this.setStatus(`R${port}${bit} è configurato come uscita`, 'warning');
                 }
             });
         });
@@ -766,7 +841,7 @@ class SimulatorUI {
         
         const opt = s.OPTION;
         document.getElementById('prescaler-value').textContent = (opt & 0x08) ? 'WDT' : '1:' + (1 << ((opt & 0x07) + 1));
-        document.getElementById('tmr0-source').textContent = (opt & 0x20) ? 'External' : 'Internal';
+        document.getElementById('tmr0-source').textContent = (opt & 0x20) ? 'esterna (RA4)' : 'interna';
     }
 
     /** Secondi in µs, ms o s, con tre cifre significative circa. */
@@ -819,7 +894,7 @@ class SimulatorUI {
         if (panel) { panel.innerHTML = ''; panel.classList.remove('picsim__errors--visible'); }
     }
 
-    showError(msg) { this.setStatus('Error: ' + msg, 'error'); }
+    showError(msg) { this.setStatus('Errore: ' + msg, 'error'); }
 
     // === STATUS ===
     
@@ -834,6 +909,8 @@ class SimulatorUI {
         document.getElementById('btn-stop').disabled = !running && !this.animating;
         document.getElementById('btn-step').disabled = running;
         document.getElementById('btn-step-over').disabled = running;
+        const hex = document.getElementById('btn-hex');
+        if (hex) hex.disabled = running;
         const btn = document.getElementById('btn-animate');
         if (btn) btn.textContent = this.animating ? '⏸ Pause' : '⏯ Animate';
     }

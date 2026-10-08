@@ -3,7 +3,7 @@
 Simulatore del microcontrollore PIC16F84A nel browser: editor Assembly, assemblatore e debugger.  
 Niente MPLAB, niente programmatore, niente breadboard. Tutto nel tuo WordPress.
 
-**Versione:** 1.1.0
+**Versione:** 1.2.0
 **Autore:** [Davide Bertolino](https://www.davidebertolino.it)  
 **Licenza:** GPL v2 or later  
 **Richiede:** WordPress 5.8+, PHP 7.4+  
@@ -43,9 +43,10 @@ Timer0, vettore di interrupt a 0x004, stack hardware a 8 livelli che avvolge.
 
 ### ▶️ Esecuzione e debug
 - Run, Step, Step Over, Animate e Reset
+- Step Over esegue l'intera subroutine, anche un ritardo da centinaia di migliaia di cicli, e si ferma all'istruzione dopo la `CALL` (i breakpoint interni lo fermano prima)
 - **Run in tempo reale** come il chip a 4 MHz (un ciclo istruzione al µs), oppure rallentato
   (1/10, 1/100, 1/1000) o alla massima velocità del browser; il tempo simulato è mostrato accanto ai cicli
-- Animate da 1 a 100 istruzioni al secondo, per seguire il programma riga per riga
+- Animate da 1 a 100 istruzioni al secondo, per seguire il programma riga per riga; la velocità si cambia anche mentre gira
 - Breakpoint cliccabili sui numeri di riga
 - Pannelli: Registri, bit di STATUS, Stack, Memoria (RAM/Programma/EEPROM), TMR0
 - Celle di RAM ed EEPROM modificabili a mano durante l'esecuzione
@@ -53,9 +54,11 @@ Timer0, vettore di interrupt a 0x004, stack hardware a 8 livelli che avvolge.
 
 ### 🎓 Uso in classe
 - 10 esempi progressivi, dal blink LED alla macchina a stati
-- Load e Save dei sorgenti `.asm` dal PC locale
+- Load e Save dei sorgenti `.asm` dal PC locale, con il nome del file caricato
+- Export Intel HEX del programma assemblato, pronto per un programmatore reale
 - Modalità a schermo intero
 - Scorciatoie da tastiera, attive solo quando il simulatore ha il focus
+- Usabile da telefono: comandi, editor e pannelli si adattano allo schermo
 
 ### 🔄 Aggiornamenti automatici
 Gli aggiornamenti arrivano dalle release GitHub e compaiono nella pagina Plugin come per ogni altro
@@ -99,7 +102,11 @@ il secondo shortcode mostra un avviso al posto del simulatore.
 | `F11` | Schermo intero |
 | `Ctrl+S` | Salva file ASM |
 | `Ctrl+O` | Apri file ASM |
+| `Ctrl+N` | Nuovo programma |
+| `Ctrl+Invio` | Assembla |
 | `Esc` | Stop |
+
+Su Mac, `Cmd` al posto di `Ctrl`.
 
 ---
 
@@ -163,7 +170,19 @@ Questo è un simulatore didattico:
 - I tempi sono a livello di ciclo istruzione: non c'è simulazione al quarto di ciclo (Q1-Q4)
 - La scrittura in EEPROM è istantanea (sul chip richiede circa 4 ms); il clock esterno su RA4/T0CKI non è sincronizzato
 - L'assemblatore non supporta macro, `#include` di file e compilazione condizionale (`#ifdef`); `PAGESEL` non serve sul 16F84A e non è riconosciuto
-- L'export Intel HEX esiste nel codice (`Simulator.exportHex()`) ma non è ancora collegato a un comando dell'interfaccia
+
+---
+
+## Accessibilità (WCAG 2.1 AA)
+
+Verificata con axe-core negli E2E, sul simulatore appena aperto, con errori di assemblaggio, in
+esecuzione e a schermo intero, su desktop e su telefono.
+
+- Contrasto del testo ≥ 4,5:1 su tutti gli sfondi, compresi bit di STATUS accesi e pannello errori
+- Nome accessibile per tutti i controlli: pulsanti con sola icona, select degli esempi e della
+  velocità, slider di Animate (con il valore letto come "N istruzioni al secondo")
+- Messaggi di stato in una regione `role="status"`, annunciata dagli screen reader
+- Errori dell'assemblatore come testo, con il numero di riga
 
 ---
 
@@ -199,6 +218,43 @@ coincidono e se il README ha la voce `### X.Y.Z`; lo ZIP allegato contiene la ca
 ---
 
 ## Changelog
+
+### 1.2.0
+**CPU più fedele al chip reale, interfaccia per il telefono, accessibilità**
+
+Minor: chiude i difetti di fedeltà della CPU e quelli dell'interfaccia rimasti dopo la 1.1.0.
+
+**CPU:**
+- **Il Reset cancellava la EEPROM**, mentre sul chip resta: l'esempio 07 dichiarava che il contatore
+  sopravvive al reset e non succedeva. Ora EEPROM e memoria programma sopravvivono al Reset;
+  assemblare equivale a programmare il chip, quindi la EEPROM riparte cancellata (0xFF) più i dati `DE`
+- FSR tra 0x8C e 0xCF raggiungeva una zona separata invece dei GPR 0x0C–0x4F
+- Una scrittura tramite INDF saltava la logica dei registri speciali: scrivere PORTB via FSR non
+  aggiornava i pin, TRISB via FSR non funzionava
+- **TMR0 contava le istruzioni invece dei cicli**: GOTO, CALL e gli skip valgono 2 cicli anche per il
+  timer, e i conti di ritardo tornano col contatore dei cicli. Dopo una scrittura TMR0 resta fermo
+  due cicli, come nel datasheet; il salto al vettore di interrupt costa 2 cicli
+- SLEEP: Timer0 si ferma; il risveglio da INT, cambio su RB4–RB7 o fine scrittura EEPROM avviene
+  anche con GIE = 0, e con GIE = 1 il micro esegue l'istruzione dopo SLEEP prima della ISR
+- INTF e RBIF si alzano anche con l'interrupt disabilitato; le uscite RB4–RB7 non generano RBIF
+- Le locazioni non implementate (0x07, 0x50–0x7F) si leggono 0; la scrittura di PCL usa solo PCLATH<4:0>
+
+**Interfaccia:**
+- **Telefono**: l'editor spingeva fuori dallo schermo registri, porte e memoria; ora si dividono lo spazio
+- Stato, cicli, tempo simulato e istruzione corrente sono sempre visibili, non solo a schermo intero
+- **Step Over** esegue tutta la subroutine, anche un ritardo da centinaia di migliaia di cicli, senza
+  bloccare la pagina; prima si fermava dopo 10.000 cicli, dentro il ritardo
+- Durante Run il pulsante per rimuovere un breakpoint non rispondeva al click
+- Lo slider di Animate cambia ritmo anche mentre Animate gira
+- Export **Intel HEX** dalla toolbar; Save usa il nome del file o dell'esempio caricato; Step Over
+  anche nella mini-toolbar
+- Cmd su Mac funziona come Ctrl nelle scorciatoie
+- Messaggi di stato ed errori dell'assemblatore in italiano
+
+**Accessibilità (WCAG 2.1 AA):** contrasto del testo almeno 4,5:1, nome accessibile per tutti i
+controlli, messaggi di stato annunciati dagli screen reader; verificata con axe-core negli E2E.
+
+**Test:** 123 unit test e 53 E2E, axe compreso; nessun test `todo` rimasto.
 
 ### 1.1.0
 **Run in tempo reale, assemblatore compatibile con MPASM, test e CI**

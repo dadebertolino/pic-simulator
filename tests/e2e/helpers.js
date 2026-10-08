@@ -31,7 +31,7 @@ async function openSimulator( page, key = 'simulator' ) {
 	} );
 
 	await page.goto( pageUrl( key ) );
-	// "Ready" e' gia' nel markup: l'inizializzazione si riconosce da window.picSim.
+	// "Pronto" e' gia' nel markup: l'inizializzazione si riconosce da window.picSim.
 	await page.waitForFunction( () => window.picSim && window.picSim.ui );
 	return errors;
 }

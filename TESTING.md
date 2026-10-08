@@ -96,6 +96,10 @@ Playground gira in Node (PHP compilato in WebAssembly) e risponde sulla stessa
 porta di wp-env (8888) con utente `admin` / `password`. È più lento e si azzera a
 ogni avvio, ma non richiede Docker.
 
+`accessibilita.spec.js` e il progetto telefono eseguono axe-core (WCAG 2.1 AA) sul
+simulatore in più stati: un controllo nuovo senza nome accessibile, o un colore con
+contrasto insufficiente, fa fallire la CI.
+
 `npx playwright test --project=chromium` o `--project=mobile` per un solo progetto,
 `npm run test:e2e:headed` per vedere il browser.
 

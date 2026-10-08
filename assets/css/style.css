@@ -9,7 +9,7 @@
     --picsim-bg-lighter: #2f353d;
     --picsim-border: #3a4149;
     --picsim-text: #e4e4e7;
-    --picsim-text-dim: #8b929a;
+    --picsim-text-dim: #9aa1a9; /* contrasto >= 4,5:1 su tutti gli sfondi (WCAG AA) */
     --picsim-accent: #22d3a0;
     --picsim-success: #22c55e;
     --picsim-warning: #f59e0b;
@@ -229,7 +229,7 @@
 .picsim__errors--visible { max-height: 120px; overflow: auto; }
 .picsim__error { display: flex; gap: 8px; padding: 5px 10px; font-size: 11px; border-bottom: 1px solid var(--picsim-border); cursor: pointer; }
 .picsim__error:hover { background: rgba(239,68,68,0.12); }
-.picsim__error span:first-child { color: var(--picsim-danger); font-weight: 600; min-width: 50px; }
+.picsim__error span:first-child { color: #f87171; font-weight: 600; min-width: 50px; } /* il rosso pieno sul fondo degli errori: 3,9:1 */
 
 /* === PANELS === */
 .picsim__panels { width: 300px; display: flex; flex-direction: column; overflow-y: auto; background: var(--picsim-bg-light); }
@@ -261,7 +261,7 @@
 
 .picsim__status-bits { display: flex; justify-content: center; gap: 6px; margin-top: 8px; }
 .picsim__bit { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--picsim-bg); border-radius: 2px; font-size: 9px; font-weight: 600; color: var(--picsim-text-dim); }
-.picsim__bit--set { background: var(--picsim-success); color: white; }
+.picsim__bit--set { background: var(--picsim-success); color: var(--picsim-bg); } /* bianco su verde: 2,3:1 */
 
 /* Ports */
 .picsim__port-legend {
@@ -374,10 +374,12 @@
 /* === FOOTER === */
 .picsim__footer {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    height: 36px;
-    padding: 0 16px;
+    justify-content: space-between;
+    gap: 4px 16px;
+    min-height: 36px;
+    padding: 6px 16px;
     background: var(--picsim-bg-light);
     border-top: 1px solid var(--picsim-border);
     font-size: 11px;
@@ -385,26 +387,27 @@
 }
 
 .picsim__footer-left {
-    display: none;
+    /* Stato, cicli e tempo simulato: visibili anche fuori dallo schermo
+       intero, e' li' che compaiono esiti e messaggi. */
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    position: absolute;
-    left: 16px;
+    gap: 4px 8px;
 }
-.picsim--fullscreen .picsim__footer-left { display: flex; }
 
 .picsim__footer-center {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 6px;
     color: var(--picsim-text-dim);
 }
+/* Sullo schermo stretto vanno a capo le voci intere, non le parole. */
+.picsim__footer-center > * { white-space: nowrap; }
 .picsim__footer-center a { color: var(--picsim-accent); text-decoration: none; }
 .picsim__footer-center a:hover { text-decoration: underline; }
 
 .picsim__footer-right {
-    position: absolute;
-    right: 16px;
     color: var(--picsim-text-dim);
 }
 
@@ -436,6 +439,8 @@
 /* === RESPONSIVE === */
 @media (max-width: 900px) {
     .picsim__main { flex-direction: column; }
-    .picsim__panels { width: 100%; max-height: 280px; }
-    .picsim__editor-panel { min-width: 100%; }
+    /* Base 0 e altezza minima: l'editor non deve crescere col sorgente e
+       spingere i pannelli fuori dal contenitore. */
+    .picsim__editor-panel { min-width: 100%; flex: 1 1 0; min-height: 180px; border-right: none; border-bottom: 1px solid var(--picsim-border); }
+    .picsim__panels { width: 100%; flex: 0 0 45%; min-height: 0; }
 }

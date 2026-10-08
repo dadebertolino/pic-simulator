@@ -11,7 +11,7 @@ test.describe( 'assemblaggio', () => {
 	test( 'il programma iniziale si assembla', async ( { page } ) => {
 		await openSimulator( page );
 		await assemble( page );
-		await expect( status( page ) ).toHaveText( /^Assembled: \d+ words$/ );
+		await expect( status( page ) ).toHaveText( /^Assemblato: \d+ parole$/ );
 		await expect( page.locator( '#error-panel' ) ).toBeEmpty();
 	} );
 
@@ -20,11 +20,11 @@ test.describe( 'assemblaggio', () => {
 		await setSource( page, '    NOP\n    MOVLW FOO\n    BSF PORTB, 9' );
 		await assemble( page );
 
-		await expect( status( page ) ).toHaveText( 'Assembly failed' );
+		await expect( status( page ) ).toHaveText( 'Errori di assemblaggio: 2' );
 		const rows = page.locator( '#error-panel .picsim__error' );
 		await expect( rows ).toHaveCount( 2 );
 		await expect( rows.nth( 0 ) ).toContainText( 'Riga 2' );
-		await expect( rows.nth( 0 ) ).toContainText( 'Undefined symbol: FOO' );
+		await expect( rows.nth( 0 ) ).toContainText( 'Simbolo non definito: FOO' );
 		await expect( rows.nth( 1 ) ).toContainText( 'Riga 3' );
 		await expect( page.locator( '.picsim__line-num--error' ) ).toHaveCount( 2 );
 	} );
@@ -85,7 +85,7 @@ test.describe( 'esecuzione e debug', () => {
 		await expect( page.locator( '#breakpoints-list' ) ).toContainText( '0x001' );
 
 		await button( page, 'run' ).click();
-		await expect( status( page ) ).toHaveText( 'Breakpoint @ 0x001' );
+		await expect( status( page ) ).toHaveText( 'Breakpoint a 0x001' );
 		const state = await cpuState( page );
 		expect( state.PC ).toBe( 1 );
 		await expect( button( page, 'run' ) ).toBeEnabled();
@@ -98,12 +98,12 @@ test.describe( 'esecuzione e debug', () => {
 		await assemble( page );
 
 		await button( page, 'run' ).click();
-		await expect( status( page ) ).toHaveText( 'Running...' );
+		await expect( status( page ) ).toHaveText( 'In esecuzione...' );
 		await expect( button( page, 'stop' ) ).toBeEnabled();
 		await expect.poll( async () => ( await cpuState( page ) ).cycles ).toBeGreaterThan( 50 );
 
 		await button( page, 'stop' ).click();
-		await expect( status( page ) ).toHaveText( 'Stopped' );
+		await expect( status( page ) ).toHaveText( 'Fermo' );
 		const cycles = ( await cpuState( page ) ).cycles;
 		await page.waitForTimeout( 300 );
 		expect( ( await cpuState( page ) ).cycles ).toBe( cycles );
@@ -153,10 +153,10 @@ test.describe( 'esecuzione e debug', () => {
 		await assemble( page );
 
 		await button( page, 'animate' ).click();
-		await expect( status( page ) ).toHaveText( 'Animating...' );
+		await expect( status( page ) ).toHaveText( 'Animate in corso...' );
 		await expect.poll( async () => ( await cpuState( page ) ).PC !== 0 || ( await cpuState( page ) ).cycles > 0 ).toBe( true );
 		await button( page, 'stop' ).click();
-		await expect( status( page ) ).toHaveText( 'Stopped' );
+		await expect( status( page ) ).toHaveText( 'Fermo' );
 	} );
 
 	test( 'Reset riporta PC e registri allo stato iniziale', async ( { page } ) => {
@@ -212,7 +212,7 @@ test.describe( 'porte e pin', () => {
 		await button( page, 'step' ).click();
 
 		await page.locator( '#portb-pins .picsim__pin[data-bit="3"]' ).click();
-		await expect( status( page ) ).toHaveText( 'RB3 è configurato come OUTPUT' );
+		await expect( status( page ) ).toHaveText( 'RB3 è configurato come uscita' );
 	} );
 
 	test( 'TRIS modificabile dal pannello', async ( { page } ) => {
@@ -291,7 +291,7 @@ test.describe( 'file', () => {
 			mimeType: 'text/plain',
 			buffer: Buffer.from( '; caricato dal PC\n    MOVLW 1\n    GOTO $\n' ),
 		} );
-		await expect( status( page ) ).toHaveText( 'Loaded: mio.asm' );
+		await expect( status( page ) ).toHaveText( 'Caricato: mio.asm' );
 		await expect( page.locator( '#code-editor' ) ).toHaveValue( /caricato dal PC/ );
 	} );
 
@@ -303,7 +303,7 @@ test.describe( 'file', () => {
 			page.waitForEvent( 'download' ),
 			button( page, 'save' ).click(),
 		] );
-		expect( download.suggestedFilename() ).toBe( 'program.asm' );
+		expect( download.suggestedFilename() ).toBe( 'programma.asm' );
 		const fs = require( 'fs' );
 		expect( fs.readFileSync( await download.path(), 'utf8' ) ).toBe( '; da salvare\n    NOP\n' );
 	} );

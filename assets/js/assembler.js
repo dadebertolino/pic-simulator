@@ -161,7 +161,7 @@ class PIC16Assembler {
             const { label, body } = this.splitLabel(raw);
             if (label && isPass1) {
                 if (this.labels[label] !== undefined) {
-                    this.errors.push({ line: lineNum, message: `Duplicate label: ${label}` });
+                    this.errors.push({ line: lineNum, message: `Etichetta duplicata: ${label}` });
                 } else {
                     this.labels[label] = this.currentAddress;
                 }
@@ -268,7 +268,7 @@ class PIC16Assembler {
         const assign = rest.match(/^(EQU|SET)(?:\s+(.*))?$/i);
         if (assign) {
             if (!/^[A-Za-z_]\w*$/.test(first)) {
-                this.errors.push({ line: lineNum, message: `Invalid symbol name: ${first}` });
+                this.errors.push({ line: lineNum, message: `Nome di simbolo non valido: ${first}` });
                 return { handled: true };
             }
             const value = this.evaluate(assign[2], lineNum);
@@ -283,7 +283,7 @@ class PIC16Assembler {
                 const addr = this.evaluate(rest, lineNum);
                 if (addr !== null) {
                     if (addr < 0) {
-                        this.errors.push({ line: lineNum, message: `Invalid ORG address: ${rest}` });
+                        this.errors.push({ line: lineNum, message: `Indirizzo ORG non valido: ${rest}` });
                     } else {
                         this.currentAddress = addr;
                     }
@@ -340,7 +340,7 @@ class PIC16Assembler {
                 const count = this.evaluate(rest, lineNum);
                 if (count !== null) {
                     if (count < 0) {
-                        this.errors.push({ line: lineNum, message: `Invalid RES count: ${rest}` });
+                        this.errors.push({ line: lineNum, message: `Numero di parole RES non valido: ${rest}` });
                     } else {
                         for (let i = 0; i < count; i++) this.output(0x3FFF, lineNum, isPass1, true);
                     }
@@ -354,7 +354,7 @@ class PIC16Assembler {
                     this.output(0, lineNum, true);
                     return { handled: true };
                 }
-                const addr = this.evalRange(rest, 0, 0xFF, 'File register', lineNum);
+                const addr = this.evalRange(rest, 0, 0xFF, 'Registro', lineNum);
                 const word = (addr !== null && (addr & 0x80) ? 0x1400 : 0x1000) | (5 << 7) | 0x03;
                 this.output(word, lineNum, false);
                 return { handled: true };
@@ -376,7 +376,7 @@ class PIC16Assembler {
         for (const item of this.splitArgs(line)) {
             const m = item.match(/^([A-Za-z_]\w*)\s*(?::\s*(.+))?$/);
             if (!m) {
-                this.errors.push({ line: lineNum, message: `Invalid CBLOCK entry: ${item}` });
+                this.errors.push({ line: lineNum, message: `Voce CBLOCK non valida: ${item}` });
                 continue;
             }
 
@@ -385,14 +385,14 @@ class PIC16Assembler {
                 size = this.evaluate(m[2], lineNum);
                 if (size === null) continue;
                 if (size < 1) {
-                    this.errors.push({ line: lineNum, message: `Invalid size: ${item}` });
+                    this.errors.push({ line: lineNum, message: `Dimensione non valida: ${item}` });
                     continue;
                 }
             }
 
             const name = m[1].toUpperCase();
             if (isPass1 && this.variables[name] !== undefined) {
-                this.errors.push({ line: lineNum, message: `Duplicate variable: ${name}` });
+                this.errors.push({ line: lineNum, message: `Variabile duplicata: ${name}` });
             }
             this.variables[name] = this.cblockAddress;
             this.cblockAddress += size;
@@ -402,7 +402,7 @@ class PIC16Assembler {
     processData(directive, rest, lineNum, isPass1) {
         const args = this.splitArgs(rest);
         if (args.length === 0) {
-            this.errors.push({ line: lineNum, message: 'Missing operand' });
+            this.errors.push({ line: lineNum, message: 'Operando mancante' });
             return;
         }
 
@@ -429,8 +429,8 @@ class PIC16Assembler {
 
     dataValue(directive, arg, lineNum) {
         const value = directive === 'DW' || directive === 'DATA'
-            ? this.evalRange(arg, 0, 0x3FFF, 'Value', lineNum)
-            : this.evalRange(arg, -128, 255, 'Value', lineNum);
+            ? this.evalRange(arg, 0, 0x3FFF, 'Valore', lineNum)
+            : this.evalRange(arg, -128, 255, 'Valore', lineNum);
         // Valore errato: si emette comunque una parola per non spostare
         // gli indirizzi; l'errore e' gia' registrato.
         return value === null ? 0 : value;
@@ -439,7 +439,7 @@ class PIC16Assembler {
     setRadix(name, lineNum) {
         const radix = { HEX: 16, DEC: 10 }[(name || '').toUpperCase()];
         if (radix === undefined) {
-            this.errors.push({ line: lineNum, message: `Unsupported radix: ${name} (use DEC or HEX)` });
+            this.errors.push({ line: lineNum, message: `Radice non supportata: ${name} (usa DEC o HEX)` });
         } else {
             this.radix = radix;
         }
@@ -454,7 +454,7 @@ class PIC16Assembler {
 
         if (!instr) {
             if (isPass1) {
-                this.errors.push({ line: lineNum, message: `Unknown instruction: ${mnemonic}` });
+                this.errors.push({ line: lineNum, message: `Istruzione sconosciuta: ${mnemonic}` });
             }
             return;
         }
@@ -476,11 +476,11 @@ class PIC16Assembler {
         }[instr.type];
 
         if (operands.length < arity[0]) {
-            this.errors.push({ line: lineNum, message: `Missing operand for ${mnemonic}` });
+            this.errors.push({ line: lineNum, message: `Operando mancante per ${mnemonic}` });
             return null;
         }
         if (operands.length > arity[1]) {
-            this.errors.push({ line: lineNum, message: `Too many operands for ${mnemonic}` });
+            this.errors.push({ line: lineNum, message: `Troppi operandi per ${mnemonic}` });
             return null;
         }
 
@@ -492,9 +492,9 @@ class PIC16Assembler {
 
             case 'byte': {
                 // f, d format (d omesso = F, come in MPASM)
-                const f = this.evalRange(operands[0], 0, 0xFF, 'File register', lineNum);
+                const f = this.evalRange(operands[0], 0, 0xFF, 'Registro', lineNum);
                 const d = operands.length > 1
-                    ? this.evalRange(operands[1], 0, 1, 'Destination (W or F)', lineNum)
+                    ? this.evalRange(operands[1], 0, 1, 'Destinazione (W o F)', lineNum)
                     : 1;
                 if (f === null || d === null) return null;
                 return word | (d << 7) | (f & 0x7F);
@@ -502,28 +502,28 @@ class PIC16Assembler {
 
             case 'byte_f': {
                 // f only (CLRF, MOVWF)
-                const f = this.evalRange(operands[0], 0, 0xFF, 'File register', lineNum);
+                const f = this.evalRange(operands[0], 0, 0xFF, 'Registro', lineNum);
                 if (f === null) return null;
                 return word | (f & 0x7F);
             }
 
             case 'bit': {
-                const f = this.evalRange(operands[0], 0, 0xFF, 'File register', lineNum);
-                const b = this.evalRange(operands[1], 0, 7, 'Bit number', lineNum);
+                const f = this.evalRange(operands[0], 0, 0xFF, 'Registro', lineNum);
+                const b = this.evalRange(operands[1], 0, 7, 'Numero di bit', lineNum);
                 if (f === null || b === null) return null;
                 return word | (b << 7) | (f & 0x7F);
             }
 
             case 'literal': {
                 // -128..255: i negativi sono il complemento a due (MOVLW -1 = 0xFF)
-                const k = this.evalRange(operands[0], -128, 255, 'Literal', lineNum);
+                const k = this.evalRange(operands[0], -128, 255, 'Letterale', lineNum);
                 if (k === null) return null;
                 return word | (k & 0xFF);
             }
 
             case 'address': {
                 // Il 16F84A ha 1K di memoria programma
-                const addr = this.evalRange(operands[0], 0, 0x3FF, 'Address', lineNum);
+                const addr = this.evalRange(operands[0], 0, 0x3FF, 'Indirizzo', lineNum);
                 if (addr === null) return null;
                 return word | addr;
             }
@@ -588,7 +588,7 @@ class PIC16Assembler {
             const fmt = v => (v < 0 ? '-' : '') + '0x' + Math.abs(v).toString(16).toUpperCase();
             this.errors.push({
                 line: lineNum,
-                message: `${what} out of range: ${expr.trim()} = ${fmt(value)} (allowed ${fmt(min)}..${fmt(max)})`
+                message: `${what} fuori intervallo: ${expr.trim()} = ${fmt(value)} (ammesso ${fmt(min)}..${fmt(max)})`
             });
             return null;
         }
@@ -601,7 +601,7 @@ class PIC16Assembler {
      */
     parseExpression(expr) {
         const text = (expr || '').trim();
-        if (!text) throw new Error('Missing operand');
+        if (!text) throw new Error('Operando mancante');
 
         const tokens = this.tokenize(text);
         let pos = 0;
@@ -613,16 +613,16 @@ class PIC16Assembler {
 
         const primary = () => {
             const t = tokens[pos++];
-            if (!t) throw new Error(`Incomplete expression: ${text}`);
+            if (!t) throw new Error(`Espressione incompleta: ${text}`);
             if (t.type === 'num') return t.value;
             if (t.type === 'sym') return this.lookupSymbol(t.value);
             if (t.value === '(') {
                 const value = orExpr();
-                if (!isOp(')')) throw new Error(`Missing ')' in: ${text}`);
+                if (!isOp(')')) throw new Error(`Manca ')' in: ${text}`);
                 pos++;
                 return value;
             }
-            throw new Error(`Unexpected '${t.value}' in: ${text}`);
+            throw new Error(`'${t.value}' inatteso in: ${text}`);
         };
 
         const unary = () => {
@@ -649,7 +649,7 @@ class PIC16Assembler {
 
         const mul = binary(unary, ['*', '/'], (op, a, b) => {
             if (op === '*') return a * b;
-            if (b === 0) throw new Error(`Division by zero in: ${text}`);
+            if (b === 0) throw new Error(`Divisione per zero in: ${text}`);
             return Math.trunc(a / b);
         });
         const add = binary(mul, ['+', '-'], (op, a, b) => (op === '+' ? a + b : a - b));
@@ -660,7 +660,7 @@ class PIC16Assembler {
 
         const value = orExpr();
         if (pos < tokens.length) {
-            throw new Error(`Unexpected '${tokens[pos].value}' in: ${text}`);
+            throw new Error(`'${tokens[pos].value}' inatteso in: ${text}`);
         }
         return value;
     }
@@ -669,7 +669,7 @@ class PIC16Assembler {
         const tokens = [];
         const number = str => {
             const value = this.parseNumber(str);
-            if (value === null) throw new Error(`Invalid number: ${str}`);
+            if (value === null) throw new Error(`Numero non valido: ${str}`);
             return { type: 'num', value };
         };
 
@@ -692,7 +692,7 @@ class PIC16Assembler {
             } else if ((m = rest.match(/^(<<|>>|[-+*/&|^~()])/))) {
                 tokens.push({ type: 'op', value: m[0] });
             } else {
-                throw new Error(`Unexpected character '${rest[0]}' in: ${text}`);
+                throw new Error(`Carattere inatteso '${rest[0]}' in: ${text}`);
             }
 
             i += m[0].length;
@@ -707,7 +707,7 @@ class PIC16Assembler {
                 return table[name];
             }
         }
-        throw new Error(`Undefined symbol: ${name}`);
+        throw new Error(`Simbolo non definito: ${name}`);
     }
 
     /**
@@ -766,7 +766,7 @@ class PIC16Assembler {
                 this.overflowLine = lineNum;
                 this.errors.push({
                     line: lineNum,
-                    message: `Address 0x${addr.toString(16).toUpperCase()} is outside program memory (0x000-0x3FF)`
+                    message: `Indirizzo 0x${addr.toString(16).toUpperCase()} fuori dalla memoria programma (0x000-0x3FF)`
                 });
             }
             return;

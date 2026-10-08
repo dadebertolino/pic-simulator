@@ -15,15 +15,17 @@ $shortcuts = array(
     'F11'     => __('Schermo intero', 'webpicsimulator'),
     'Ctrl+S'  => __('Salva file ASM', 'webpicsimulator'),
     'Ctrl+O'  => __('Apri file ASM', 'webpicsimulator'),
+    'Ctrl+N'  => __('Nuovo programma', 'webpicsimulator'),
+    'Ctrl+Invio' => __('Assembla', 'webpicsimulator'),
     'Esc'     => __('Stop', 'webpicsimulator'),
 );
 
 $features = array(
     __('Simulatore PIC16F84A: CPU, memoria, periferiche e interrupt', 'webpicsimulator'),
     __('Assembler a due passate con editor e segnalazione errori', 'webpicsimulator'),
-    __('Load e Save dei sorgenti .asm dal PC locale', 'webpicsimulator'),
+    __('Load e Save dei sorgenti .asm dal PC locale, export Intel HEX', 'webpicsimulator'),
     __('Pannelli: Registri, Stack, Memoria, PORTA/PORTB, TMR0', 'webpicsimulator'),
-    __('Run, Step, Step Over, Animate, Reset e breakpoint', 'webpicsimulator'),
+    __('Run in tempo reale o rallentato, Step, Step Over, Animate, Reset e breakpoint', 'webpicsimulator'),
     __('10 esempi didattici, dal blink LED alla macchina a stati', 'webpicsimulator'),
 );
 ?>
@@ -91,7 +93,7 @@ $features = array(
         <div class="db-ui-card-header"><h3>⌨️ <?php esc_html_e('Scorciatoie da tastiera', 'webpicsimulator'); ?></h3></div>
         <div class="db-ui-card-body">
             <p class="description">
-                <?php esc_html_e('Attive solo quando il simulatore ha il focus o è a schermo intero.', 'webpicsimulator'); ?>
+                <?php esc_html_e('Attive solo quando il simulatore ha il focus o è a schermo intero. Su Mac, Cmd al posto di Ctrl.', 'webpicsimulator'); ?>
             </p>
             <table class="widefat striped">
                 <tbody>

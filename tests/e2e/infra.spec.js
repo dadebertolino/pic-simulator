@@ -11,7 +11,7 @@ test.describe( 'infrastruttura', () => {
 		const errors = await openSimulator( page );
 
 		await expect( page.locator( '#pic-simulator' ) ).toBeVisible();
-		await expect( page.locator( '#status-text' ) ).toHaveText( 'Ready' );
+		await expect( page.locator( '#status-text' ) ).toHaveText( 'Pronto' );
 		// Il programma iniziale e' il blink LED.
 		await expect( page.locator( '#code-editor' ) ).toHaveValue( /Blink LED su RB0/ );
 		expect( errors ).toEqual( [] );
