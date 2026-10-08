@@ -1,0 +1,412 @@
+{
+  "device": "PIC16F877A",
+  "description": "40/44-pin Enhanced FLASH Microcontroller with 10-bit A/D and nanoWatt",
+  "datasheet": "DS39582C",
+  "package": ["PDIP-40", "PLCC-44", "TQFP-44", "QFN-44"],
+  
+  "memory": {
+    "program": {
+      "type": "FLASH",
+      "size": 8192,
+      "pageSize": 2048,
+      "pages": 4
+    },
+    "ram": {
+      "total": 368,
+      "banks": 4,
+      "gpr": {
+        "bank0": { "start": "0x20", "end": "0x7F", "size": 96 },
+        "bank1": { "start": "0xA0", "end": "0xFF", "size": 96 },
+        "bank2": { "start": "0x110", "end": "0x16F", "size": 96 },
+        "bank3": { "start": "0x190", "end": "0x1EF", "size": 96 },
+        "common": { "start": "0x70", "end": "0x7F", "size": 16, "accessibleFromAllBanks": true }
+      }
+    },
+    "eeprom": {
+      "size": 256,
+      "startAddress": "0x2100"
+    }
+  },
+
+  "ports": {
+    "PORTA": {
+      "width": 6,
+      "bitmask": "0x3F",
+      "dataReg": "0x05",
+      "trisReg": "0x85",
+      "pins": [
+        { "pin": 0, "name": "RA0", "altFunc": ["AN0"] },
+        { "pin": 1, "name": "RA1", "altFunc": ["AN1"] },
+        { "pin": 2, "name": "RA2", "altFunc": ["AN2", "VREF-", "CVREF"] },
+        { "pin": 3, "name": "RA3", "altFunc": ["AN3", "VREF+"] },
+        { "pin": 4, "name": "RA4", "altFunc": ["T0CKI", "C1OUT"], "openDrain": true },
+        { "pin": 5, "name": "RA5", "altFunc": ["AN4", "SS", "C2OUT"] }
+      ],
+      "analogPins": [0, 1, 2, 3, 5]
+    },
+    "PORTB": {
+      "width": 8,
+      "bitmask": "0xFF",
+      "dataReg": "0x06",
+      "trisReg": "0x86",
+      "pins": [
+        { "pin": 0, "name": "RB0", "altFunc": ["INT"] },
+        { "pin": 1, "name": "RB1" },
+        { "pin": 2, "name": "RB2" },
+        { "pin": 3, "name": "RB3", "altFunc": ["PGM"] },
+        { "pin": 4, "name": "RB4", "ioc": true },
+        { "pin": 5, "name": "RB5", "ioc": true },
+        { "pin": 6, "name": "RB6", "altFunc": ["PGC"], "ioc": true },
+        { "pin": 7, "name": "RB7", "altFunc": ["PGD"], "ioc": true }
+      ],
+      "features": {
+        "weakPullups": true,
+        "interruptOnChange": [4, 5, 6, 7]
+      }
+    },
+    "PORTC": {
+      "width": 8,
+      "bitmask": "0xFF",
+      "dataReg": "0x07",
+      "trisReg": "0x87",
+      "pins": [
+        { "pin": 0, "name": "RC0", "altFunc": ["T1OSO", "T1CKI"] },
+        { "pin": 1, "name": "RC1", "altFunc": ["T1OSI", "CCP2"] },
+        { "pin": 2, "name": "RC2", "altFunc": ["CCP1"] },
+        { "pin": 3, "name": "RC3", "altFunc": ["SCK", "SCL"] },
+        { "pin": 4, "name": "RC4", "altFunc": ["SDI", "SDA"] },
+        { "pin": 5, "name": "RC5", "altFunc": ["SDO"] },
+        { "pin": 6, "name": "RC6", "altFunc": ["TX", "CK"] },
+        { "pin": 7, "name": "RC7", "altFunc": ["RX", "DT"] }
+      ]
+    },
+    "PORTD": {
+      "width": 8,
+      "bitmask": "0xFF",
+      "dataReg": "0x08",
+      "trisReg": "0x88",
+      "pins": [
+        { "pin": 0, "name": "RD0", "altFunc": ["PSP0"] },
+        { "pin": 1, "name": "RD1", "altFunc": ["PSP1"] },
+        { "pin": 2, "name": "RD2", "altFunc": ["PSP2"] },
+        { "pin": 3, "name": "RD3", "altFunc": ["PSP3"] },
+        { "pin": 4, "name": "RD4", "altFunc": ["PSP4"] },
+        { "pin": 5, "name": "RD5", "altFunc": ["PSP5"] },
+        { "pin": 6, "name": "RD6", "altFunc": ["PSP6"] },
+        { "pin": 7, "name": "RD7", "altFunc": ["PSP7"] }
+      ]
+    },
+    "PORTE": {
+      "width": 3,
+      "bitmask": "0x07",
+      "dataReg": "0x09",
+      "trisReg": "0x89",
+      "pins": [
+        { "pin": 0, "name": "RE0", "altFunc": ["RD", "AN5"] },
+        { "pin": 1, "name": "RE1", "altFunc": ["WR", "AN6"] },
+        { "pin": 2, "name": "RE2", "altFunc": ["CS", "AN7"] }
+      ],
+      "analogPins": [0, 1, 2]
+    }
+  },
+
+  "peripherals": {
+    "TMR0": {
+      "type": "timer8",
+      "reg": "0x01",
+      "optionReg": "0x81",
+      "prescaler": {
+        "values": [2, 4, 8, 16, 32, 64, 128, 256],
+        "assignBit": "PSA",
+        "selectBits": ["PS0", "PS1", "PS2"]
+      },
+      "clockSource": {
+        "internal": { "bit": "T0CS", "value": 0 },
+        "external": { "bit": "T0CS", "value": 1, "pin": "RA4/T0CKI" }
+      },
+      "interruptFlag": "T0IF",
+      "interruptEnable": "T0IE"
+    },
+    "TMR1": {
+      "type": "timer16",
+      "regLow": "0x0E",
+      "regHigh": "0x0F",
+      "controlReg": "0x10",
+      "prescaler": {
+        "values": [1, 2, 4, 8],
+        "selectBits": ["T1CKPS0", "T1CKPS1"]
+      },
+      "clockSource": {
+        "internal": { "bit": "TMR1CS", "value": 0 },
+        "external": { "bit": "TMR1CS", "value": 1, "pin": "RC0/T1CKI" }
+      },
+      "oscillator": {
+        "enableBit": "T1OSCEN",
+        "pins": ["RC0/T1OSO", "RC1/T1OSI"]
+      },
+      "gate": {
+        "enableBit": "T1GINV",
+        "pin": "RB5/T1G"
+      },
+      "interruptFlag": { "reg": "PIR1", "bit": 0 },
+      "interruptEnable": { "reg": "PIE1", "bit": 0 }
+    },
+    "TMR2": {
+      "type": "timer8",
+      "reg": "0x11",
+      "controlReg": "0x12",
+      "periodReg": "0x92",
+      "prescaler": {
+        "values": [1, 4, 16],
+        "selectBits": ["T2CKPS0", "T2CKPS1"]
+      },
+      "postscaler": {
+        "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        "selectBits": ["TOUTPS0", "TOUTPS1", "TOUTPS2", "TOUTPS3"]
+      },
+      "interruptFlag": { "reg": "PIR1", "bit": 1 },
+      "interruptEnable": { "reg": "PIE1", "bit": 1 }
+    },
+    "ADC": {
+      "type": "adc",
+      "resolution": 10,
+      "channels": 8,
+      "resultRegHigh": "0x1E",
+      "resultRegLow": "0x9E",
+      "controlReg0": "0x1F",
+      "controlReg1": "0x9F",
+      "channelPins": ["AN0", "AN1", "AN2", "AN3", "AN4", "AN5", "AN6", "AN7"],
+      "vrefOptions": ["VDD/VSS", "RA3/VSS", "VDD/RA2", "RA3/RA2"],
+      "clockSource": ["FOSC/2", "FOSC/8", "FOSC/32", "FRC"],
+      "interruptFlag": { "reg": "PIR1", "bit": 6 },
+      "interruptEnable": { "reg": "PIE1", "bit": 6 }
+    },
+    "CCP1": {
+      "type": "ccp",
+      "regLow": "0x15",
+      "regHigh": "0x16",
+      "controlReg": "0x17",
+      "pin": "RC2/CCP1",
+      "modes": {
+        "capture": {
+          "timer": "TMR1",
+          "edges": ["falling", "rising", "4th_rising", "16th_rising"]
+        },
+        "compare": {
+          "timer": "TMR1",
+          "actions": ["toggle", "set_high", "set_low", "interrupt_only", "special_trigger"]
+        },
+        "pwm": {
+          "timer": "TMR2",
+          "resolution": "10-bit max"
+        }
+      },
+      "interruptFlag": { "reg": "PIR1", "bit": 2 },
+      "interruptEnable": { "reg": "PIE1", "bit": 2 }
+    },
+    "CCP2": {
+      "type": "ccp",
+      "regLow": "0x1B",
+      "regHigh": "0x1C",
+      "controlReg": "0x1D",
+      "pin": "RC1/CCP2",
+      "modes": {
+        "capture": { "timer": "TMR1" },
+        "compare": { "timer": "TMR1" },
+        "pwm": { "timer": "TMR2" }
+      },
+      "interruptFlag": { "reg": "PIR2", "bit": 0 },
+      "interruptEnable": { "reg": "PIE2", "bit": 0 }
+    },
+    "USART": {
+      "type": "usart",
+      "txReg": "0x19",
+      "rxReg": "0x1A",
+      "statusReg": "0x18",
+      "controlReg": "0x98",
+      "baudReg": "0x99",
+      "txPin": "RC6/TX",
+      "rxPin": "RC7/RX",
+      "modes": ["async", "sync_master", "sync_slave"],
+      "baudRateFormula": "FOSC / (16 * (SPBRG + 1))",
+      "interruptFlags": {
+        "tx": { "reg": "PIR1", "bit": 4 },
+        "rx": { "reg": "PIR1", "bit": 5 }
+      },
+      "interruptEnables": {
+        "tx": { "reg": "PIE1", "bit": 4 },
+        "rx": { "reg": "PIE1", "bit": 5 }
+      }
+    },
+    "MSSP": {
+      "type": "mssp",
+      "bufferReg": "0x13",
+      "controlReg": "0x14",
+      "controlReg2": "0x91",
+      "statusReg": "0x94",
+      "addressReg": "0x93",
+      "spi": {
+        "sckPin": "RC3/SCK",
+        "sdiPin": "RC4/SDI",
+        "sdoPin": "RC5/SDO",
+        "ssPin": "RA5/SS",
+        "modes": ["master", "slave"]
+      },
+      "i2c": {
+        "sclPin": "RC3/SCL",
+        "sdaPin": "RC4/SDA",
+        "modes": ["slave_7bit", "slave_10bit", "master"],
+        "clockFreq": "100kHz / 400kHz / 1MHz"
+      },
+      "interruptFlag": { "reg": "PIR1", "bit": 3 },
+      "interruptEnable": { "reg": "PIE1", "bit": 3 }
+    },
+    "PSP": {
+      "type": "psp",
+      "dataPort": "PORTD",
+      "controlReg": "0x89",
+      "pins": {
+        "rd": "RE0/RD",
+        "wr": "RE1/WR",
+        "cs": "RE2/CS"
+      },
+      "interruptFlag": { "reg": "PIR1", "bit": 7 },
+      "interruptEnable": { "reg": "PIE1", "bit": 7 }
+    }
+  },
+
+  "interrupts": {
+    "vector": "0x0004",
+    "priorityLevels": false,
+    "registers": {
+      "INTCON": "0x0B",
+      "PIE1": "0x8C",
+      "PIE2": "0x8D",
+      "PIR1": "0x0C",
+      "PIR2": "0x0D"
+    },
+    "sources": {
+      "INT": { "flag": { "reg": "INTCON", "bit": 1 }, "enable": { "reg": "INTCON", "bit": 4 } },
+      "TMR0": { "flag": { "reg": "INTCON", "bit": 2 }, "enable": { "reg": "INTCON", "bit": 5 } },
+      "PORTB": { "flag": { "reg": "INTCON", "bit": 0 }, "enable": { "reg": "INTCON", "bit": 3 } },
+      "TMR1": { "flag": { "reg": "PIR1", "bit": 0 }, "enable": { "reg": "PIE1", "bit": 0 } },
+      "TMR2": { "flag": { "reg": "PIR1", "bit": 1 }, "enable": { "reg": "PIE1", "bit": 1 } },
+      "CCP1": { "flag": { "reg": "PIR1", "bit": 2 }, "enable": { "reg": "PIE1", "bit": 2 } },
+      "SSP": { "flag": { "reg": "PIR1", "bit": 3 }, "enable": { "reg": "PIE1", "bit": 3 } },
+      "USART_TX": { "flag": { "reg": "PIR1", "bit": 4 }, "enable": { "reg": "PIE1", "bit": 4 } },
+      "USART_RX": { "flag": { "reg": "PIR1", "bit": 5 }, "enable": { "reg": "PIE1", "bit": 5 } },
+      "ADC": { "flag": { "reg": "PIR1", "bit": 6 }, "enable": { "reg": "PIE1", "bit": 6 } },
+      "PSP": { "flag": { "reg": "PIR1", "bit": 7 }, "enable": { "reg": "PIE1", "bit": 7 } },
+      "CCP2": { "flag": { "reg": "PIR2", "bit": 0 }, "enable": { "reg": "PIE2", "bit": 0 } },
+      "EEPROM": { "flag": { "reg": "PIR2", "bit": 4 }, "enable": { "reg": "PIE2", "bit": 4 } }
+    }
+  },
+
+  "sfr": {
+    "bank0": {
+      "0x00": { "name": "INDF", "reset": "0x00" },
+      "0x01": { "name": "TMR0", "reset": "0xFF" },
+      "0x02": { "name": "PCL", "reset": "0x00" },
+      "0x03": { "name": "STATUS", "reset": "0x18" },
+      "0x04": { "name": "FSR", "reset": "0xFF" },
+      "0x05": { "name": "PORTA", "reset": "0x00" },
+      "0x06": { "name": "PORTB", "reset": "0x00" },
+      "0x07": { "name": "PORTC", "reset": "0x00" },
+      "0x08": { "name": "PORTD", "reset": "0x00" },
+      "0x09": { "name": "PORTE", "reset": "0x00" },
+      "0x0A": { "name": "PCLATH", "reset": "0x00" },
+      "0x0B": { "name": "INTCON", "reset": "0x00" },
+      "0x0C": { "name": "PIR1", "reset": "0x00" },
+      "0x0D": { "name": "PIR2", "reset": "0x00" },
+      "0x0E": { "name": "TMR1L", "reset": "0xFF" },
+      "0x0F": { "name": "TMR1H", "reset": "0xFF" },
+      "0x10": { "name": "T1CON", "reset": "0x00" },
+      "0x11": { "name": "TMR2", "reset": "0x00" },
+      "0x12": { "name": "T2CON", "reset": "0x00" },
+      "0x13": { "name": "SSPBUF", "reset": "0xFF" },
+      "0x14": { "name": "SSPCON", "reset": "0x00" },
+      "0x15": { "name": "CCPR1L", "reset": "0xFF" },
+      "0x16": { "name": "CCPR1H", "reset": "0xFF" },
+      "0x17": { "name": "CCP1CON", "reset": "0x00" },
+      "0x18": { "name": "RCSTA", "reset": "0x00" },
+      "0x19": { "name": "TXREG", "reset": "0x00" },
+      "0x1A": { "name": "RCREG", "reset": "0x00" },
+      "0x1B": { "name": "CCPR2L", "reset": "0xFF" },
+      "0x1C": { "name": "CCPR2H", "reset": "0xFF" },
+      "0x1D": { "name": "CCP2CON", "reset": "0x00" },
+      "0x1E": { "name": "ADRESH", "reset": "0xFF" },
+      "0x1F": { "name": "ADCON0", "reset": "0x00" }
+    },
+    "bank1": {
+      "0x80": { "name": "INDF", "mirror": "0x00" },
+      "0x81": { "name": "OPTION_REG", "reset": "0xFF" },
+      "0x82": { "name": "PCL", "mirror": "0x02" },
+      "0x83": { "name": "STATUS", "mirror": "0x03" },
+      "0x84": { "name": "FSR", "mirror": "0x04" },
+      "0x85": { "name": "TRISA", "reset": "0x3F" },
+      "0x86": { "name": "TRISB", "reset": "0xFF" },
+      "0x87": { "name": "TRISC", "reset": "0xFF" },
+      "0x88": { "name": "TRISD", "reset": "0xFF" },
+      "0x89": { "name": "TRISE", "reset": "0x07" },
+      "0x8A": { "name": "PCLATH", "mirror": "0x0A" },
+      "0x8B": { "name": "INTCON", "mirror": "0x0B" },
+      "0x8C": { "name": "PIE1", "reset": "0x00" },
+      "0x8D": { "name": "PIE2", "reset": "0x00" },
+      "0x8E": { "name": "PCON", "reset": "0x00" },
+      "0x91": { "name": "SSPCON2", "reset": "0x00" },
+      "0x92": { "name": "PR2", "reset": "0xFF" },
+      "0x93": { "name": "SSPADD", "reset": "0x00" },
+      "0x94": { "name": "SSPSTAT", "reset": "0x00" },
+      "0x98": { "name": "TXSTA", "reset": "0x02" },
+      "0x99": { "name": "SPBRG", "reset": "0x00" },
+      "0x9E": { "name": "ADRESL", "reset": "0xFF" },
+      "0x9F": { "name": "ADCON1", "reset": "0x00" }
+    },
+    "bank2": {
+      "0x100": { "name": "INDF", "mirror": "0x00" },
+      "0x101": { "name": "TMR0", "mirror": "0x01" },
+      "0x102": { "name": "PCL", "mirror": "0x02" },
+      "0x103": { "name": "STATUS", "mirror": "0x03" },
+      "0x104": { "name": "FSR", "mirror": "0x04" },
+      "0x106": { "name": "PORTB", "mirror": "0x06" },
+      "0x10A": { "name": "PCLATH", "mirror": "0x0A" },
+      "0x10B": { "name": "INTCON", "mirror": "0x0B" },
+      "0x10C": { "name": "EEDATA", "reset": "0x00" },
+      "0x10D": { "name": "EEADR", "reset": "0x00" },
+      "0x10E": { "name": "EEDATH", "reset": "0x00" },
+      "0x10F": { "name": "EEADRH", "reset": "0x00" }
+    },
+    "bank3": {
+      "0x180": { "name": "INDF", "mirror": "0x00" },
+      "0x181": { "name": "OPTION_REG", "mirror": "0x81" },
+      "0x182": { "name": "PCL", "mirror": "0x02" },
+      "0x183": { "name": "STATUS", "mirror": "0x03" },
+      "0x184": { "name": "FSR", "mirror": "0x04" },
+      "0x186": { "name": "TRISB", "mirror": "0x86" },
+      "0x18A": { "name": "PCLATH", "mirror": "0x0A" },
+      "0x18B": { "name": "INTCON", "mirror": "0x0B" },
+      "0x18C": { "name": "EECON1", "reset": "0x00" },
+      "0x18D": { "name": "EECON2", "reset": "0x00" }
+    }
+  },
+
+  "config": {
+    "address": "0x2007",
+    "bits": {
+      "FOSC": { "bits": [0, 1], "options": ["LP", "XT", "HS", "RC"] },
+      "WDTE": { "bit": 2, "description": "Watchdog Timer Enable" },
+      "PWRTE": { "bit": 3, "description": "Power-up Timer Enable" },
+      "BOREN": { "bit": 6, "description": "Brown-out Reset Enable" },
+      "LVP": { "bit": 7, "description": "Low-Voltage Programming Enable" },
+      "CPD": { "bit": 8, "description": "Data EEPROM Code Protection" },
+      "WRT": { "bits": [9, 10], "description": "Flash Program Memory Write Enable" },
+      "CP": { "bits": [11, 12, 13], "description": "Code Protection" }
+    }
+  },
+
+  "electrical": {
+    "vddMin": 2.0,
+    "vddMax": 5.5,
+    "maxFrequency": 20
+  }
+}

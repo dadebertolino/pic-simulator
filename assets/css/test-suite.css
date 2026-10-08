@@ -1,0 +1,150 @@
+/* PIC Simulator Test Suite */
+.pic-test-suite {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    max-width: 900px;
+    margin: 20px auto;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #30363d;
+}
+
+.pic-test-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+}
+
+.pic-test-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #58a6ff;
+}
+
+.pic-test-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pic-test-btn {
+    padding: 6px 14px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background: #21262d;
+    color: #c9d1d9;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.pic-test-btn:hover { background: #30363d; }
+
+.pic-test-btn-run {
+    background: #238636;
+    border-color: #2ea043;
+    color: #fff;
+}
+
+.pic-test-btn-run:hover { background: #2ea043; }
+
+.pic-test-stats {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: #8b949e;
+}
+
+.pic-test-progress {
+    height: 3px;
+    background: #21262d;
+}
+
+.pic-test-progress-bar {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #238636, #3fb950);
+    transition: width 0.1s;
+}
+
+.pic-test-results {
+    padding: 12px 16px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.pic-test-placeholder {
+    text-align: center;
+    padding: 40px;
+    color: #484f58;
+    font-size: 14px;
+}
+
+.pic-test-result {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-bottom: 2px;
+    font-size: 12px;
+}
+
+.pic-test-pass { color: #3fb950; }
+.pic-test-fail { color: #f85149; background: rgba(248, 81, 73, 0.08); }
+
+.pic-test-icon {
+    font-size: 12px;
+    flex-shrink: 0;
+    width: 16px;
+}
+
+.pic-test-name {
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.pic-test-detail {
+    color: #8b949e;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pic-test-summary {
+    margin-top: 12px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 14px;
+    text-align: center;
+}
+
+.pic-test-all-pass {
+    background: rgba(63, 185, 80, 0.12);
+    color: #3fb950;
+    border: 1px solid rgba(63, 185, 80, 0.3);
+}
+
+.pic-test-has-fail {
+    background: rgba(248, 81, 73, 0.12);
+    color: #f85149;
+    border: 1px solid rgba(248, 81, 73, 0.3);
+}
+
+.pic-test-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 20px;
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    font-size: 11px;
+    color: #484f58;
+}

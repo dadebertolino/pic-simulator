@@ -1,394 +1,441 @@
 <?php
 /**
- * WebPicSimulator - Template Simulatore
- * Design ispirato a S7-1200 Simulator
+ * Template simulatore PIC per WordPress
+ * Variabili disponibili: $atts (shortcode attributes)
  */
 defined('ABSPATH') || exit;
+
+$height = esc_attr($atts['height']);
+$width = esc_attr($atts['width']);
+$max_width = esc_attr($atts['max_width']);
+$theme = esc_attr($atts['theme']);
+$is_fullwidth = ($atts['fullwidth'] === 'yes' || $atts['fullwidth'] === 'true' || $atts['fullwidth'] === '1');
+
+$style = "height: {$height}; width: {$width}; max-width: {$max_width};";
+if ($is_fullwidth) {
+    $style .= " margin-left: calc(-50vw + 50%); margin-right: calc(-50vw + 50%); position: relative;";
+}
 ?>
 
-<div id="pic-simulator" class="picsim" tabindex="-1" style="<?php echo esc_attr($style); ?>">
-    
-    <!-- HEADER -->
-    <header class="picsim__header">
-        <!-- Logo (sempre visibile) -->
-        <div class="picsim__logo">
-            <svg class="picsim__logo-icon" viewBox="0 0 32 32" width="32" height="32">
-                <rect x="4" y="8" width="24" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
-                <circle cx="10" cy="16" r="2" fill="currentColor"/>
-                <circle cx="16" cy="16" r="2" fill="currentColor"/>
-                <circle cx="22" cy="16" r="2" fill="currentColor"/>
-                <line x1="8" y1="4" x2="8" y2="8" stroke="currentColor" stroke-width="2"/>
-                <line x1="16" y1="4" x2="16" y2="8" stroke="currentColor" stroke-width="2"/>
-                <line x1="24" y1="4" x2="24" y2="8" stroke="currentColor" stroke-width="2"/>
-                <line x1="8" y1="24" x2="8" y2="28" stroke="currentColor" stroke-width="2"/>
-                <line x1="16" y1="24" x2="16" y2="28" stroke="currentColor" stroke-width="2"/>
-                <line x1="24" y1="24" x2="24" y2="28" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <span class="picsim__title">WebPicSimulator</span>
-            <span class="picsim__author">by Prof. D. Bertolino</span>
-        </div>
-        
-        <!-- Toolbar (solo in fullscreen) -->
-        <div class="picsim__toolbar">
-            <button class="picsim__btn" id="btn-new" title="Nuovo programma (Ctrl+N)">📄 New</button>
-            <button class="picsim__btn picsim__btn--primary" id="btn-assemble" title="Assembla (Ctrl+Enter)">▶ Assembla</button>
-            <button class="picsim__btn picsim__btn--success" id="btn-run" title="Run (F5)">▶ Run</button>
-            <button class="picsim__btn picsim__btn--warning" id="btn-animate" title="Animate (F6)">⏯ Animate</button>
-            <button class="picsim__btn picsim__btn--danger" id="btn-stop" title="Stop (Esc)" disabled>■ Stop</button>
-            <span class="picsim__toolbar-sep"></span>
-            <button class="picsim__btn" id="btn-step" title="Step (F8)">⤵ Step</button>
-            <button class="picsim__btn" id="btn-step-over" title="Step Over (F10)">⤳ Over</button>
-            <button class="picsim__btn" id="btn-reset" title="Reset">↺ Reset</button>
-            <span class="picsim__toolbar-sep"></span>
-            <button class="picsim__btn" id="btn-load" title="Apri file (Ctrl+O)">📂 Load</button>
-            <button class="picsim__btn" id="btn-save" title="Salva file (Ctrl+S)">💾 Save</button>
-            <button class="picsim__btn" id="btn-hex" title="Esporta il programma in Intel HEX">⬇ HEX</button>
-            <select id="examples-select" class="picsim__select" title="Carica esempio" aria-label="Carica un esempio">
-                <option value="">📚 Esempi...</option>
-                <option value="01_blink_led">01 - Blink LED</option>
-                <option value="02_binary_counter">02 - Contatore Binario</option>
-                <option value="03_button_led">03 - Pulsante e LED</option>
-                <option value="04_knight_rider">04 - Knight Rider</option>
-                <option value="05_timer0_interrupt">05 - Timer0 Interrupt</option>
-                <option value="06_external_interrupt">06 - Interrupt Esterno</option>
-                <option value="07_eeprom">07 - EEPROM</option>
-                <option value="08_lookup_table">08 - Tabella Lookup</option>
-                <option value="09_subroutines_stack">09 - Subroutine e Stack</option>
-                <option value="10_state_machine">10 - Macchina a Stati</option>
-            </select>
-            <span class="picsim__toolbar-sep"></span>
-            <span class="picsim__speed-group" title="Velocità di Run rispetto al chip reale a 4 MHz">
-                <span>▶</span>
-                <select id="run-speed" class="picsim__select" aria-label="Velocità di Run">
-                    <option value="1" selected>Tempo reale</option>
-                    <option value="0.1">1/10</option>
-                    <option value="0.01">1/100</option>
-                    <option value="0.001">1/1000</option>
-                    <option value="max">Massima</option>
+<div id="pic-simulator-app" class="pic-sim-container pic-sim-<?php echo $theme; ?><?php echo $is_fullwidth ? ' pic-sim-fullwidth' : ''; ?>" style="<?php echo $style; ?>">
+    <div class="pic-sim-wrapper">
+        <!-- Header -->
+        <header class="pic-header">
+            <div class="pic-logo">
+                <svg viewBox="0 0 32 32" width="28" height="28">
+                    <rect x="4" y="8" width="24" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="10" cy="16" r="2"/>
+                    <circle cx="16" cy="16" r="2"/>
+                    <circle cx="22" cy="16" r="2"/>
+                    <line x1="8" y1="4" x2="8" y2="8" stroke="currentColor" stroke-width="2"/>
+                    <line x1="14" y1="4" x2="14" y2="8" stroke="currentColor" stroke-width="2"/>
+                    <line x1="20" y1="4" x2="20" y2="8" stroke="currentColor" stroke-width="2"/>
+                    <line x1="8" y1="24" x2="8" y2="28" stroke="currentColor" stroke-width="2"/>
+                    <line x1="14" y1="24" x2="14" y2="28" stroke="currentColor" stroke-width="2"/>
+                    <line x1="20" y1="24" x2="20" y2="28" stroke="currentColor" stroke-width="2"/>
+                </svg>
+                <h2>WebPicSimulator</h2>
+                <span class="pic-author">by Prof. D.Bertolino</span>
+            </div>
+            <div class="pic-device-selector">
+                <label>Device:</label>
+                <select id="device-select">
+                    <option value="PIC16F84A" selected>PIC16F84A</option>
+                    <!-- Altri dispositivi caricati dinamicamente -->
                 </select>
-            </span>
-            <span class="picsim__speed-group">
-                <span>⏯</span>
-                <input type="range" id="speed-slider" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità di Animate (istruzioni al secondo)" aria-label="Velocità di Animate" aria-valuetext="10 istruzioni al secondo">
-                <span id="speed-value" class="picsim__speed-val">10 Hz</span>
-            </span>
+                <span id="device-info" class="pic-device-info" title="Click for details">1K / 68B / 2 ports</span>
+            </div>
+            <div class="pic-speed-control">
+                <label>Speed:</label>
+                <input type="range" id="speed-slider" min="1" max="6" step="0.5" value="3">
+                <span id="speed-value">1 kHz</span>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="pic-main">
+            <!-- Left: Editor -->
+            <div class="pic-editor-area">
+                <!-- Toolbar -->
+                <div class="pic-toolbar">
+                    <!-- Build -->
+                    <div class="pic-toolbar-group">
+                        <button class="pic-btn pic-btn-primary" id="btn-assemble" title="Assemble (F5)">
+                            &#9654; Assemble
+                        </button>
+                        <button class="pic-btn pic-btn-download" id="btn-export-hex" disabled title="Download HEX file">&#11015; .hex</button>
+                        <button class="pic-btn pic-btn-download" id="btn-export-map" disabled title="Download MAP file">&#11015; .map</button>
+                    </div>
+                    <!-- Execution -->
+                    <div class="pic-toolbar-group">
+                        <button class="pic-btn pic-btn-success" id="btn-run" disabled title="Run (Ctrl+F5)">&#9654; Run</button>
+                        <button class="pic-btn pic-btn-animate" id="btn-animate" disabled title="Animate (F6)">&#9199; Animate</button>
+                        <button class="pic-btn pic-btn-danger" id="btn-stop" disabled title="Stop (Esc)">&#9632; Stop</button>
+                    </div>
+                    <!-- Debug -->
+                    <div class="pic-toolbar-group">
+                        <button class="pic-btn" id="btn-step" disabled title="Step Into (F8)">&#11189; Step</button>
+                        <button class="pic-btn" id="btn-step-over" disabled title="Step Over (F10)">&#10809; Over</button>
+                        <button class="pic-btn" id="btn-step-out" disabled title="Step Out (Shift+F8)">&#10810; Out</button>
+                        <button class="pic-btn" id="btn-reset" disabled title="Reset">&#8634; Reset</button>
+                    </div>
+                    <!-- File -->
+                    <div class="pic-toolbar-group">
+                        <button class="pic-btn" id="btn-load-asm" title="Load ASM file">&#128196; Load</button>
+                        <button class="pic-btn" id="btn-save" title="Save Project">&#128190; Save</button>
+                        <button class="pic-btn" id="btn-export-asm" title="Export ASM with VHW config">&#11015; .asm</button>
+                        <select class="pic-select pic-select-examples" id="examples-select" title="Load example">
+                            <option value="">-- Examples --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Editor -->
+                <div class="pic-editor-container">
+                    <div class="pic-gutter" id="editor-gutter"></div>
+                    <div class="pic-editor-wrapper">
+                        <div class="pic-line-highlight" id="line-highlight"></div>
+                        <textarea id="code-editor" spellcheck="false" placeholder="; Write your PIC assembly code here..."></textarea>
+                    </div>
+                </div>
+                
+                <!-- Error Panel (sotto l'editor) -->
+                <div id="error-list" class="pic-error-panel"></div>
+                
+                <input type="file" id="asm-file-input" accept=".asm,.txt,.inc" style="display: none;">
+            </div>
+
+            <!-- Right: Panels -->
+            <aside class="pic-sidebar">
+                <!-- Registers -->
+                <div class="pic-panel pic-collapsible" data-panel="registers">
+                    <div class="pic-panel-header pic-collapse-toggle">
+                        <span>Registers</span>
+                        <span class="pic-panel-device" id="reg-device-name">PIC16F84A</span>
+                    </div>
+                    <div class="pic-panel-content pic-panel-scroll pic-collapse-body" id="registers-container">
+                    </div>
+                </div>
+
+                <!-- Interrupts -->
+                <div class="pic-panel pic-collapsible pic-collapsed" data-panel="interrupts" id="interrupts-panel">
+                    <div class="pic-panel-header pic-collapse-toggle">Interrupts</div>
+                    <div class="pic-panel-content pic-collapse-body" id="interrupts-container"></div>
+                </div>
+
+                <!-- I/O Ports -->
+                <div class="pic-panel pic-collapsible" data-panel="ports">
+                    <div class="pic-panel-header pic-collapse-toggle">I/O Ports</div>
+                    <div class="pic-panel-content pic-collapse-body" id="ports-container">
+                        <div class="pic-port-section">
+                            <div class="pic-port-label">PORTA</div>
+                            <div class="pic-port-pins" id="porta-pins"></div>
+                        </div>
+                        <div class="pic-port-section">
+                            <div class="pic-port-label">PORTB</div>
+                            <div class="pic-port-pins" id="portb-pins"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timers -->
+                <div class="pic-panel pic-collapsible" data-panel="timers" id="timers-panel">
+                    <div class="pic-panel-header pic-collapse-toggle">Timers</div>
+                    <div class="pic-panel-content pic-collapse-body" id="timers-container"></div>
+                </div>
+
+                <!-- Serial Terminal -->
+                <div class="pic-panel pic-collapsible" data-panel="terminal" id="terminal-panel">
+                    <div class="pic-panel-header pic-collapse-toggle">
+                        <span>Serial Terminal</span>
+                        <span class="pic-term-badge" id="term-enabled-badge">USART</span>
+                    </div>
+                    <div class="pic-panel-content pic-collapse-body" id="terminal-container"></div>
+                </div>
+
+                <!-- CCP/PWM -->
+                <div class="pic-panel pic-collapsible" data-panel="ccp" id="ccp-panel">
+                    <div class="pic-panel-header pic-collapse-toggle">CCP / PWM</div>
+                    <div class="pic-panel-content pic-collapse-body" id="ccp-container"></div>
+                </div>
+
+                <!-- ADC -->
+                <div class="pic-panel pic-collapsible" data-panel="adc" id="adc-panel">
+                    <div class="pic-panel-header pic-collapse-toggle">
+                        <span>ADC</span>
+                        <span class="pic-panel-device" id="adc-ch-count"></span>
+                    </div>
+                    <div class="pic-panel-content pic-collapse-body" id="adc-container"></div>
+                </div>
+
+                <!-- Comparator -->
+                <div class="pic-panel pic-collapsible" data-panel="comparator" id="comparator-panel">
+                    <div class="pic-panel-header pic-collapse-toggle">Comparator</div>
+                    <div class="pic-panel-content pic-collapse-body" id="comparator-container"></div>
+                </div>
+
+                <!-- MSSP -->
+                <div class="pic-panel pic-collapsible" data-panel="mssp" id="mssp-panel">
+                    <div class="pic-panel-header pic-collapse-toggle">
+                        <span>MSSP</span>
+                        <span class="pic-panel-device">SPI / I&sup2;C</span>
+                    </div>
+                    <div class="pic-panel-content pic-collapse-body" id="mssp-container"></div>
+                </div>
+
+                <!-- Virtual Hardware -->
+                <div class="pic-panel pic-collapsible" data-panel="virtual-hw" id="virtual-hw-panel">
+                    <div class="pic-panel-header pic-collapse-toggle">
+                        <span>Virtual Hardware</span>
+                    </div>
+                    <div class="pic-panel-content pic-collapse-body" id="virtual-hw-container">
+                        <div class="pic-vhw-toolbar">
+                            <select class="pic-select pic-select-vhw" id="vhw-config-select">
+                                <option value="none">-- Add Component --</option>
+                                <option value="7seg-1">7-Seg (1 digit, PORTB)</option>
+                                <option value="7seg-4">7-Seg (4 digit, mux)</option>
+                                <option value="lcd-8bit">LCD 16x2 (8-bit)</option>
+                                <option value="lcd-4bit">LCD 16x2 (4-bit)</option>
+                                <option value="lcd-i2c">LCD 16x2 (I²C PCF8574)</option>
+                                <option value="rtc-ds1307">RTC DS1307 (I²C)</option>
+                                <option value="eeprom-24c02">EEPROM 24C02 (I²C)</option>
+                                <option value="bmp280">BMP280 Temp/Press (I²C)</option>
+                                <option value="lm75">LM75 Temp (I²C)</option>
+                                <option value="sht21">SHT21 Temp/Humidity (I²C)</option>
+                                <option value="ds3231">DS3231 RTC (I²C)</option>
+                                <option value="mcp9808">MCP9808 Temp Alert (I²C)</option>
+                                <option value="tmp102">TMP102 Temp (I²C)</option>
+                                <option value="stts751">STTS751 Temp (I²C)</option>
+                                <option value="pcf8563">PCF8563 RTC (I²C)</option>
+                                <option value="ds18b20">DS18B20 Temp (1-Wire)</option>
+                                <option value="servo">RC Servo Motor</option>
+                                <option value="hcsr04">HC-SR04 Ultrasonic</option>
+                                <option value="ws2812">WS2812B LED Strip</option>
+                                <option value="ssd1306">SSD1306 OLED 128x64 (I²C)</option>
+                                <option value="ks0108">KS0108 GLCD 128x64 (Parallel)</option>
+                                <option value="l293d">L293D DC Motors</option>
+                                <option value="buzzer">Buzzer / Speaker</option>
+                                <option value="keypad">Keypad 4x4</option>
+                                <option value="rgb-led">RGB LED</option>
+                                <option value="led-bar">LED Bar (8, PORTB)</option>
+                                <option value="buttons-4">4 Buttons (PORTA)</option>
+                                <option value="dip-8">DIP Switch 8 (PORTB)</option>
+                                <option value="mcp23017">MCP23017 16-I/O (I²C)</option>
+                                <option value="74hc595">74HC595 Shift Reg (SPI)</option>
+                                <option value="max7219">MAX7219 8-Digit (SPI)</option>
+                                <option value="mcp3008">MCP3008 ADC 8ch (SPI)</option>
+                            </select>
+                            <button class="pic-btn pic-btn-sm" id="vhw-clear" title="Remove all">Clear</button>
+                        </div>
+                        <div class="pic-vhw-area" id="vhw-area"></div>
+                    </div>
+                </div>
+
+                <!-- Memory -->
+                <div class="pic-panel pic-collapsible" data-panel="memory">
+                    <div class="pic-panel-header pic-collapse-toggle">Memory</div>
+                    <div class="pic-panel-content pic-collapse-body">
+                        <div class="pic-memory-tabs">
+                            <button class="pic-memory-tab active" data-type="ram">RAM</button>
+                            <button class="pic-memory-tab" data-type="program">Program</button>
+                            <button class="pic-memory-tab" data-type="eeprom">EEPROM</button>
+                            <button class="pic-memory-tab" data-type="variables">Variables</button>
+                        </div>
+                        <div id="memory-content"></div>
+                    </div>
+                </div>
+
+                <!-- Stack -->
+                <div class="pic-panel pic-collapsible" data-panel="stack">
+                    <div class="pic-panel-header pic-collapse-toggle">Stack</div>
+                    <div class="pic-panel-content pic-collapse-body">
+                        <div id="stack-view"></div>
+                    </div>
+                </div>
+
+                <!-- Breakpoints -->
+                <div class="pic-panel pic-collapsible pic-collapsed" data-panel="breakpoints">
+                    <div class="pic-panel-header pic-collapse-toggle">
+                        <span>Breakpoints</span>
+                        <button class="pic-btn-icon" id="btn-clear-breakpoints" title="Clear all">&#10006;</button>
+                    </div>
+                    <div class="pic-panel-content pic-collapse-body">
+                        <div class="pic-breakpoints-hint">Click line numbers to toggle</div>
+                        <div id="breakpoints-list"></div>
+                    </div>
+                </div>
+
+                <!-- Watch -->
+                <div class="pic-panel pic-collapsible pic-collapsed" data-panel="watches">
+                    <div class="pic-panel-header pic-collapse-toggle">Watch</div>
+                    <div class="pic-panel-content pic-collapse-body">
+                        <div class="pic-watch-input">
+                            <input type="text" id="watch-input" placeholder="Variable or address">
+                            <button class="pic-btn" id="btn-add-watch">+</button>
+                        </div>
+                        <div id="watches-list"></div>
+                    </div>
+                </div>
+            </aside>
         </div>
-        
-        <!-- Pulsante Fullscreen (solo in fullscreen, per uscire) -->
-        <button class="picsim__btn-fullscreen" id="btn-fullscreen" title="Esci da schermo intero (F11)">
-            <svg id="icon-expand" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
-            </svg>
-            <svg id="icon-compress" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
-                <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M3 21l7-7"/>
-            </svg>
-        </button>
-        
-        <!-- Pulsante fullscreen per modalità normale -->
-        <button class="picsim__expand-btn" id="btn-fullscreen2" title="Schermo intero (F11)">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
-            </svg>
-        </button>
-    </header>
-    
-    <!-- MINI TOOLBAR (solo modalità normale) -->
-    <div class="picsim__mini-toolbar">
-        <button class="picsim__mbtn" id="btn-new2" title="Nuovo programma (Ctrl+N)" aria-label="Nuovo programma">📄</button>
-        <button class="picsim__mbtn picsim__mbtn--primary" id="btn-assemble2" title="Assembla (Ctrl+Invio)">▶ Assembla</button>
-        <button class="picsim__mbtn picsim__mbtn--success" id="btn-run2" title="Run (F5)">▶ Run</button>
-        <button class="picsim__mbtn picsim__mbtn--warning" id="btn-animate2" title="Animate (F6)" aria-label="Animate">⏯</button>
-        <button class="picsim__mbtn picsim__mbtn--danger" id="btn-stop2" title="Stop (Esc)" aria-label="Stop" disabled>■</button>
-        <button class="picsim__mbtn" id="btn-step2" title="Step (F8)" aria-label="Step">⤵</button>
-        <button class="picsim__mbtn" id="btn-step-over2" title="Step Over (F10)" aria-label="Step Over">⤳</button>
-        <button class="picsim__mbtn" id="btn-reset2" title="Reset" aria-label="Reset">↺</button>
-        <span class="picsim__mini-sep"></span>
-        <button class="picsim__mbtn" id="btn-load2" title="Apri file (Ctrl+O)" aria-label="Apri file">📂</button>
-        <button class="picsim__mbtn" id="btn-save2" title="Salva file (Ctrl+S)" aria-label="Salva file">💾</button>
-        <button class="picsim__mbtn" id="btn-hex2" title="Esporta il programma in Intel HEX" aria-label="Esporta Intel HEX">HEX</button>
-        <select id="examples-select2" class="picsim__mini-select" title="Carica esempio" aria-label="Carica un esempio">
-            <option value="">📚</option>
-            <option value="01_blink_led">01</option>
-            <option value="02_binary_counter">02</option>
-            <option value="03_button_led">03</option>
-            <option value="04_knight_rider">04</option>
-            <option value="05_timer0_interrupt">05</option>
-            <option value="06_external_interrupt">06</option>
-            <option value="07_eeprom">07</option>
-            <option value="08_lookup_table">08</option>
-            <option value="09_subroutines_stack">09</option>
-            <option value="10_state_machine">10</option>
-        </select>
-        <span class="picsim__mini-sep"></span>
-        <select id="run-speed2" class="picsim__mini-select" title="Velocità di Run rispetto al chip reale a 4 MHz" aria-label="Velocità di Run">
-            <option value="1" selected>▶ Reale</option>
-            <option value="0.1">▶ 1/10</option>
-            <option value="0.01">▶ 1/100</option>
-            <option value="0.001">▶ 1/1000</option>
-            <option value="max">▶ Max</option>
-        </select>
-        <span class="picsim__speed-group">
-            <span class="picsim__speed-label">⏯</span>
-            <input type="range" id="speed-slider2" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità di Animate (istruzioni al secondo)" aria-label="Velocità di Animate" aria-valuetext="10 istruzioni al secondo">
-            <span id="speed-value2" class="picsim__speed-val">10 Hz</span>
-        </span>
+
+        <!-- Footer -->
+        <footer class="pic-footer">
+            <div class="pic-status" id="sim-status">
+                <div class="pic-status-indicator" id="status-indicator"></div>
+                <span id="status-text">Ready</span>
+            </div>
+            <span class="pic-status-sep">|</span>
+            <span>Cycles: <strong id="cycles">0</strong></span>
+            <span class="pic-status-sep">|</span>
+            <span id="current-instruction" class="pic-current-instr">-</span>
+            <div id="messages" class="pic-messages"></div>
+        </footer>
     </div>
-    
-    <!-- MAIN CONTENT -->
-    <div class="picsim__main">
-        <!-- Editor -->
-        <div class="picsim__editor-panel">
-            <div class="picsim__editor-container">
-                <div class="picsim__line-numbers" id="line-numbers"></div>
-                <div class="picsim__editor-wrapper">
-                    <div class="picsim__line-highlight" id="line-highlight"></div>
-                    <textarea id="code-editor" class="picsim__editor" spellcheck="false" placeholder="; Scrivi il tuo codice ASM qui..."></textarea>
+
+    <!-- Project Dialog -->
+    <div id="project-dialog" class="pic-dialog-overlay" style="display: none;">
+        <div class="pic-dialog">
+            <div class="pic-dialog-header">
+                <h3 id="dialog-title">Projects</h3>
+                <button class="pic-dialog-close" onclick="picSimCloseDialog()">&times;</button>
+            </div>
+            <div class="pic-dialog-content">
+                <div id="dialog-save" style="display: none;">
+                    <label>Project Name:</label>
+                    <input type="text" id="project-name" placeholder="my_project">
+                    <button class="pic-btn pic-btn-primary" onclick="picSimSaveProject()">Save</button>
                 </div>
-            </div>
-            <div class="picsim__errors" id="error-panel"></div>
-        </div>
-        
-        <!-- Panels -->
-        <div class="picsim__panels">
-            <div class="picsim__panel">
-                <div class="picsim__panel-header">Registri</div>
-                <div class="picsim__panel-content">
-                    <div class="picsim__registers">
-                        <div class="picsim__reg"><span class="picsim__reg-name">W</span><span class="picsim__reg-value" id="reg-w">00</span></div>
-                        <div class="picsim__reg"><span class="picsim__reg-name">PC</span><span class="picsim__reg-value" id="reg-pc">000</span></div>
-                        <div class="picsim__reg"><span class="picsim__reg-name">STATUS</span><span class="picsim__reg-value" id="reg-status">00</span></div>
-                        <div class="picsim__reg"><span class="picsim__reg-name">FSR</span><span class="picsim__reg-value" id="reg-fsr">00</span></div>
-                        <div class="picsim__reg"><span class="picsim__reg-name">OPTION</span><span class="picsim__reg-value" id="reg-option">FF</span></div>
-                        <div class="picsim__reg"><span class="picsim__reg-name">INTCON</span><span class="picsim__reg-value" id="reg-intcon">00</span></div>
-                        <div class="picsim__reg"><span class="picsim__reg-name">TMR0</span><span class="picsim__reg-value" id="reg-tmr0">00</span></div>
-                        <div class="picsim__reg"><span class="picsim__reg-name">PCLATH</span><span class="picsim__reg-value" id="reg-pclath">00</span></div>
-                    </div>
-                    <div class="picsim__status-bits">
-                        <span class="picsim__bit" id="bit-c" title="Carry">C</span>
-                        <span class="picsim__bit" id="bit-dc" title="Digit Carry">DC</span>
-                        <span class="picsim__bit" id="bit-z" title="Zero">Z</span>
-                        <span class="picsim__bit" id="bit-pd" title="Power Down">PD</span>
-                        <span class="picsim__bit" id="bit-to" title="Timeout">TO</span>
-                        <span class="picsim__bit" id="bit-rp0" title="Bank Select">RP0</span>
-                    </div>
+                <div id="dialog-load" style="display: none;">
+                    <div id="projects-list"></div>
                 </div>
-            </div>
-            
-            <div class="picsim__panel">
-                <div class="picsim__panel-header">I/O Ports</div>
-                <div class="picsim__panel-content">
-                    <div class="picsim__port-legend">
-                        <span class="picsim__legend-item"><span class="picsim__legend-pin picsim__legend-pin--in"></span> IN</span>
-                        <span class="picsim__legend-item"><span class="picsim__legend-pin picsim__legend-pin--out"></span> OUT</span>
-                        <span class="picsim__legend-item"><span class="picsim__legend-pin picsim__legend-pin--high"></span> HIGH</span>
-                        <span class="picsim__legend-item"><span class="picsim__legend-pin picsim__legend-pin--low"></span> LOW</span>
-                    </div>
-                    <div class="picsim__port">
-                        <div class="picsim__port-header">
-                            <span class="picsim__port-name">PORTA</span>
-                            <span class="picsim__port-value" id="porta-value">00</span>
-                            <span class="picsim__port-tris">TRIS: <span id="trisa-value" class="picsim__tris-val" data-port="A" title="Click per editare">1F</span></span>
-                        </div>
-                        <div class="picsim__port-pins" id="porta-pins">
-                            <div class="picsim__pin" data-port="A" data-bit="4" title="RA4/T0CKI">4</div>
-                            <div class="picsim__pin" data-port="A" data-bit="3" title="RA3">3</div>
-                            <div class="picsim__pin" data-port="A" data-bit="2" title="RA2">2</div>
-                            <div class="picsim__pin" data-port="A" data-bit="1" title="RA1">1</div>
-                            <div class="picsim__pin" data-port="A" data-bit="0" title="RA0">0</div>
-                        </div>
-                    </div>
-                    <div class="picsim__port">
-                        <div class="picsim__port-header">
-                            <span class="picsim__port-name">PORTB</span>
-                            <span class="picsim__port-value" id="portb-value">00</span>
-                            <span class="picsim__port-tris">TRIS: <span id="trisb-value" class="picsim__tris-val" data-port="B" title="Click per editare">FF</span></span>
-                        </div>
-                        <div class="picsim__port-pins" id="portb-pins">
-                            <div class="picsim__pin" data-port="B" data-bit="7" title="RB7">7</div>
-                            <div class="picsim__pin" data-port="B" data-bit="6" title="RB6">6</div>
-                            <div class="picsim__pin" data-port="B" data-bit="5" title="RB5">5</div>
-                            <div class="picsim__pin" data-port="B" data-bit="4" title="RB4">4</div>
-                            <div class="picsim__pin" data-port="B" data-bit="3" title="RB3">3</div>
-                            <div class="picsim__pin" data-port="B" data-bit="2" title="RB2">2</div>
-                            <div class="picsim__pin" data-port="B" data-bit="1" title="RB1">1</div>
-                            <div class="picsim__pin" data-port="B" data-bit="0" title="RB0/INT">0</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="picsim__panel">
-                <div class="picsim__panel-header">Stack <span class="picsim__panel-badge" id="stack-depth">0/8</span></div>
-                <div class="picsim__panel-content"><div id="stack-view"></div></div>
-            </div>
-            
-            <div class="picsim__panel">
-                <div class="picsim__panel-header">Timer</div>
-                <div class="picsim__panel-content">
-                    <div class="picsim__timer-row">
-                        <span>TMR0:</span>
-                        <span id="tmr0-display">00</span>
-                        <span class="picsim__timer-bar"><span id="tmr0-bar" style="width:0%"></span></span>
-                    </div>
-                    <div class="picsim__timer-info">
-                        <span>Prescaler: <span id="prescaler-value">1:2</span></span>
-                        <span>Sorgente: <span id="tmr0-source">interna</span></span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="picsim__panel">
-                <div class="picsim__panel-header">
-                    Memory
-                    <div class="picsim__memory-tabs">
-                        <button class="picsim__memory-tab picsim__memory-tab--active" data-type="ram">RAM</button>
-                        <button class="picsim__memory-tab" data-type="program">Prog</button>
-                        <button class="picsim__memory-tab" data-type="eeprom">EE</button>
-                    </div>
-                </div>
-                <div class="picsim__panel-content picsim__panel-content--scroll"><div id="memory-view"></div></div>
-            </div>
-            
-            <div class="picsim__panel">
-                <div class="picsim__panel-header">Breakpoints <button class="picsim__btn-x" id="btn-clear-breakpoints">✕</button></div>
-                <div class="picsim__panel-content"><div id="breakpoints-list"><em class="picsim__hint">Click sui numeri di riga</em></div></div>
             </div>
         </div>
     </div>
-    
-    <!-- FOOTER -->
-    <footer class="picsim__footer">
-        <!-- Stato della simulazione -->
-        <div class="picsim__footer-left">
-            <span class="picsim__status-dot" id="status-dot"></span>
-            <span id="status-text" role="status">Pronto</span>
-            <span class="picsim__footer-sep">|</span>
-            <span>Cicli: <strong id="cycles-count">0</strong></span>
-            <span class="picsim__footer-sep">|</span>
-            <span title="Tempo trascorso sul chip simulato a 4 MHz">Tempo: <strong id="sim-time">0 µs</strong></span>
-            <span class="picsim__footer-sep">|</span>
-            <span id="current-instruction">-</span>
-        </div>
-        
-        <!-- Copyright (sempre visibile, centrato) -->
-        <div class="picsim__footer-center">
-            <span>© <?php echo esc_html(gmdate('Y')); ?> Davide "the Prof." Bertolino</span>
-            <span class="picsim__footer-sep">—</span>
-            <a href="https://www.davidebertolino.it" target="_blank">www.davidebertolino.it</a>
-            <span class="picsim__footer-sep">—</span>
-            <a href="mailto:info@davidebertolino.it">info@davidebertolino.it</a>
-        </div>
-        
-        <!-- Versione (sempre visibile, destra) -->
-        <div class="picsim__footer-right">WebPicSimulator v<?php echo esc_html(PICSIM_VERSION); ?></div>
-    </footer>
-    
-    <input type="file" id="file-input" accept=".asm,.txt,.inc" style="display:none">
 </div>
 
 <script>
-(function() {
-    // Se il documento e' gia' pronto (shortcode reso via AJAX o nell'anteprima
-    // dell'editor a blocchi) DOMContentLoaded non scattera' piu': in quel caso
-    // si parte subito.
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initPicSim);
-    } else {
-        initPicSim();
-    }
-
-function initPicSim() {
-    if (typeof PIC16F84A === 'undefined' || typeof PIC16Assembler === 'undefined' || 
-        typeof Simulator === 'undefined' || typeof SimulatorUI === 'undefined') {
-        document.getElementById('status-text').textContent = 'Errore: script del simulatore non caricati';
+// Inizializzazione simulatore
+document.addEventListener('DOMContentLoaded', async function() {
+    // Verifica che le classi siano caricate
+    if (typeof PIC16Core === 'undefined') {
+        console.error('PIC Simulator: Scripts not loaded');
         return;
     }
     
-    const cpu = new PIC16F84A();
+    const container = document.getElementById('pic-simulator-app');
+    if (!container) return;
+    
+    // Carica database dispositivi
+    let deviceLoader = null;
+    if (typeof DeviceLoader !== 'undefined') {
+        deviceLoader = new DeviceLoader();
+        await deviceLoader.init(picSimConfig.dataPath || '');
+        
+        // Popola dropdown dispositivi
+        populateDeviceSelect(deviceLoader);
+    }
+    
+    // Crea factory dispositivi
+    var factory = new PIC16Factory(deviceLoader);
+    
+    // Carica device iniziale (PIC16F84A default)
+    var defaultDevice = 'PIC16F84A';
+    if (deviceLoader) {
+        await deviceLoader.loadDevice(defaultDevice).catch(function() {});
+    }
+    
+    // Crea CPU con periferiche dal factory
+    var result = factory.create(defaultDevice);
+    var cpu = result.cpu;
+    if (result.warnings.length > 0) {
+        console.warn('Factory warnings:', result.warnings);
+    }
+    console.log('Peripherals:', result.peripheralList.join(', '));
+    
     const assembler = new PIC16Assembler();
     const simulator = new Simulator(cpu, assembler);
     const ui = new SimulatorUI(simulator);
+    
+    // Passa device loader e factory all'UI
+    ui.deviceLoader = deviceLoader;
+    ui.factory = factory;
+    
     ui.init();
-    window.picSim = { cpu, assembler, simulator, ui };
     
-    // === FULLSCREEN ===
-    const container = document.getElementById('pic-simulator');
-    const btnFS = document.getElementById('btn-fullscreen');
-    const btnFS2 = document.getElementById('btn-fullscreen2');
-    const iconExp = document.getElementById('icon-expand');
-    const iconComp = document.getElementById('icon-compress');
-    
-    function setFullscreen(fs) {
-        container.classList.toggle('picsim--fullscreen', fs);
-        if (iconExp) iconExp.style.display = fs ? 'none' : 'block';
-        if (iconComp) iconComp.style.display = fs ? 'block' : 'none';
+    // Storage WordPress
+    if (typeof PICStorageWP !== 'undefined') {
+        const storage = new PICStorageWP(ui);
+        storage.init();
+        window.picSimStorage = storage;
     }
     
-    // Se requestFullscreen fallisce si ripiega sulla classe CSS. In quel caso
-    // document.fullscreenElement resta null, quindi lo stato va tracciato a
-    // parte: altrimenti il secondo click ritenta l'ingresso invece di uscire.
-    let cssFullscreen = false;
-    
-    function toggleFS() {
-        if (document.fullscreenElement) {
-            document.exitFullscreen();
-            return;
+    // Event listener cambio dispositivo
+    document.getElementById('device-select')?.addEventListener('change', async (e) => {
+        var deviceId = e.target.value;
+        
+        // Carica spec device se non in cache
+        if (deviceLoader) {
+            try {
+                await deviceLoader.loadDevice(deviceId);
+            } catch (err) {
+                console.error('Failed to load device:', deviceId, err);
+            }
         }
-        if (cssFullscreen) {
-            cssFullscreen = false;
-            setFullscreen(false);
-            return;
-        }
-        // Se l'API manca del tutto (Safari datati, iframe senza permesso)
-        // chiamarla solleverebbe un TypeError invece di ripiegare.
-        if (!container.requestFullscreen) {
-            cssFullscreen = true;
-            setFullscreen(true);
-            return;
-        }
-        container.requestFullscreen().catch(() => {
-            cssFullscreen = true;
-            setFullscreen(true);
-        });
-    }
-    
-    btnFS?.addEventListener('click', toggleFS);
-    btnFS2?.addEventListener('click', toggleFS);
-    document.addEventListener('fullscreenchange', () => {
-        cssFullscreen = false;
-        setFullscreen(!!document.fullscreenElement);
-    });
-    // Come per le altre scorciatoie: solo quando il simulatore e' in uso,
-    // altrimenti F11 verrebbe rubato all'intera pagina che ospita il plugin.
-    document.addEventListener('keydown', e => {
-        if (e.key === 'F11' && ui.isActive()) { e.preventDefault(); toggleFS(); }
+        
+        ui.changeDevice(deviceId);
     });
     
-    // === MINI TOOLBAR ===
-    [['btn-new2','btn-new'],['btn-assemble2','btn-assemble'],['btn-run2','btn-run'],['btn-animate2','btn-animate'],
-     ['btn-stop2','btn-stop'],['btn-step2','btn-step'],['btn-step-over2','btn-step-over'],['btn-reset2','btn-reset'],
-     ['btn-load2','btn-load'],['btn-save2','btn-save'],['btn-hex2','btn-hex']].forEach(([m,n]) => {
-        const mb = document.getElementById(m), nb = document.getElementById(n);
-        if (mb && nb) {
-            mb.addEventListener('click', () => nb.click());
-            new MutationObserver(() => mb.disabled = nb.disabled).observe(nb, {attributes:true,attributeFilter:['disabled']});
-        }
+    window.picSim = { cpu, assembler, simulator, ui, deviceLoader, factory };
+    
+    console.log('WebPicSimulator initialized');
+});
+
+// Popola dropdown dispositivi
+function populateDeviceSelect(loader) {
+    const select = document.getElementById('device-select');
+    if (!select || !loader) return;
+    
+    const devices = loader.getAvailableDevices();
+    select.innerHTML = '';
+    
+    devices.forEach(function(device) {
+        const option = document.createElement('option');
+        option.value = device.id;
+        option.textContent = device.name + ' (' + device.pins + '-pin, ' + device.program + ')';
+        select.appendChild(option);
     });
     
-    // Velocita' di Run e di Animate: le gestisce SimulatorUI.initControls().
-    
-    // === ESEMPI ===
-    function loadEx(v) {
-        if (!v) return;
-        fetch('<?php echo esc_js(PICSIM_URL); ?>examples/' + v + '.asm')
-            .then(r => r.ok ? r.text() : Promise.reject())
-            .then(c => { ui.fullReset(); ui.setSource(c); ui.fileName = v + '.asm'; ui.setStatus('Caricato: ' + v, 'success'); })
-            .catch(() => ui.setStatus('Impossibile caricare l\'esempio ' + v, 'error'));
-    }
-    document.getElementById('examples-select')?.addEventListener('change', function() { loadEx(this.value); this.value = ''; });
-    document.getElementById('examples-select2')?.addEventListener('change', function() { loadEx(this.value); this.value = ''; });
-    
-    console.log('WebPicSimulator v<?php echo esc_js(PICSIM_VERSION); ?>');
+    // Seleziona default
+    select.value = 'PIC16F84A';
 }
-})();
+
+// Aggiorna info dispositivo
+function updateDeviceInfo(deviceId, loader) {
+    const info = document.getElementById('device-info');
+    if (!info || !loader) return;
+    
+    const device = loader.devices[deviceId];
+    if (device) {
+        var mem = device.memory || {};
+        var progSize = (mem.program && mem.program.size) || 1024;
+        var ramSize = (mem.ram && mem.ram.total) || 68;
+        var portNames = device.ports ? Object.keys(device.ports) : [];
+        var periphNames = device.peripherals ? Object.keys(device.peripherals) : [];
+        var progStr = progSize >= 1024 ? (progSize / 1024) + 'K' : String(progSize);
+        info.textContent = progStr + ' / ' + ramSize + 'B / ' + portNames.length + ' ports';
+        info.title = (device.description || deviceId) + '\nPorts: ' + portNames.join(', ') + '\nPeripherals: ' + periphNames.join(', ');
+    }
+}
+
+// Global functions per dialog
+function picSimCloseDialog() {
+    document.getElementById('project-dialog').style.display = 'none';
+}
+
+function picSimSaveProject() {
+    if (window.picSimStorage) {
+        window.picSimStorage.saveProject();
+    }
+}
 </script>

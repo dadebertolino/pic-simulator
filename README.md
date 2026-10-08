@@ -1,338 +1,267 @@
-# WebPicSimulator
+# WebPicSimulator v3.1.0
 
-Simulatore del microcontrollore PIC16F84A nel browser: editor Assembly, assemblatore e debugger.  
-Niente MPLAB, niente programmatore, niente breadboard. Tutto nel tuo WordPress.
+Simulatore web-based per microcontrollori **PIC16 mid-range**, plugin WordPress per uso didattico.
 
-**Versione:** 1.2.0
-**Autore:** [Davide Bertolino](https://www.davidebertolino.it)  
-**Licenza:** GPL v2 or later  
-**Richiede:** WordPress 5.8+, PHP 7.4+  
-**GitHub:** [dadebertolino/pic-simulator](https://github.com/dadebertolino/pic-simulator)
+**140 file · 322K · 35.000+ righe di codice · 53 esempi ASM**
 
----
+## Caratteristiche principali
 
-## Cosa fa
+- **22 PIC16** supportati (F83 → F887, F1847)
+- **35 istruzioni** mid-range completamente emulate, 4-bank RAM, INDF 9-bit
+- **13 periferiche core**: GPIO, TMR0/1/2, CCP/PWM, USART, ADC, EEPROM, Comparator, MSSP (SPI+I²C), bus 1-Wire
+- **25 device virtuali** su 4 bus (I²C, SPI, 1-Wire, GPIO)
+- **28 componenti Virtual Hardware** con pin configurabili
+- **53 esempi ASM** pronti, da LED Blink a LCD I²C a WS2812 NeoPixel
+- **Assembler integrato** con simboli automatici, __CONFIG, export .hex/.map
+- **UI modulare** con 17 moduli e pannelli collassabili
 
-Lo studente scrive Assembly nell'editor, assembla e vede il programma girare istruzione per
-istruzione, con registri, memoria e pin sotto gli occhi. Il simulatore riproduce il comportamento
-del chip reale: banking della RAM, latch di porta distinti dai livelli sui pin, prescaler del
-Timer0, vettore di interrupt a 0x004, stack hardware a 8 livelli che avvolge.
+## Requisiti
 
-### 🧠 Core PIC16F84A
-- Set di istruzioni completo a 14 bit, con i flag C, DC e Z
-- 1K di memoria programma, 68 byte di GPR, 64 byte di EEPROM
-- Banking Bank 0/Bank 1 con indirizzamento indiretto via INDF/FSR
-- Stack hardware a 8 livelli
-- Timer0 con prescaler configurabile e clock interno o esterno (RA4/T0CKI)
-- Interrupt: Timer0, INT esterno su RB0, cambio su RB4-RB7, fine scrittura EEPROM
-- EEPROM con la sequenza di sblocco 0x55/0xAA: sopravvive al Reset e si cancella (0xFF) solo quando si riassembla, come riprogrammando il chip
-- Timer0 conta i cicli istruzione (due per GOTO, CALL e skip) e resta fermo due cicli dopo una scrittura
-- SLEEP con risveglio da INT, cambio su RB4-RB7 e fine scrittura EEPROM, anche con GIE = 0
-
-### 🛠️ Assemblatore compatibile con MPASM
-- Due passate con risoluzione delle etichette in avanti
-- Etichette con i due punti (`LOOP:`) o in colonna 1 senza (`LOOP`)
-- Direttive ORG, EQU, SET, CBLOCK/ENDC (anche `A, B, BUF:4`), DW, DT (anche stringhe), DE, DATA, RES, BANKSEL, RADIX, END
-- `#define` come sostituzione testuale, anche per coppie registro/bit (`#define LED PORTB,0`)
-- Espressioni negli operandi e nelle direttive: `+ - * / << >> & | ^ ~`, parentesi, `HIGH`/`LOW` e `$` (indirizzo corrente)
-- Letterali esadecimali, binari, ottali, decimali e carattere in tutte le notazioni MPASM; radice predefinita decimale
-- `DE` a partire da `ORG 0x2100` precarica la EEPROM
-- Errori riga per riga, evidenziati nell'editor: simboli non definiti, numeri malformati e valori
-  fuori intervallo (letterali, bit, indirizzi, memoria programma) non vengono mai convertiti in silenzio
-- Disassemblatore, usato nella vista Programma
-
-### ▶️ Esecuzione e debug
-- Run, Step, Step Over, Animate e Reset
-- Step Over esegue l'intera subroutine, anche un ritardo da centinaia di migliaia di cicli, e si ferma all'istruzione dopo la `CALL` (i breakpoint interni lo fermano prima)
-- **Run in tempo reale** come il chip a 4 MHz (un ciclo istruzione al µs), oppure rallentato
-  (1/10, 1/100, 1/1000) o alla massima velocità del browser; il tempo simulato è mostrato accanto ai cicli
-- Animate da 1 a 100 istruzioni al secondo, per seguire il programma riga per riga; la velocità si cambia anche mentre gira
-- Breakpoint cliccabili sui numeri di riga
-- Pannelli: Registri, bit di STATUS, Stack, Memoria (RAM/Programma/EEPROM), TMR0
-- Celle di RAM ed EEPROM modificabili a mano durante l'esecuzione
-- Pin di ingresso cliccabili per simulare pulsanti e segnali esterni
-
-### 🎓 Uso in classe
-- 10 esempi progressivi, dal blink LED alla macchina a stati
-- Load e Save dei sorgenti `.asm` dal PC locale, con il nome del file caricato
-- Export Intel HEX del programma assemblato, pronto per un programmatore reale
-- Modalità a schermo intero
-- Scorciatoie da tastiera, attive solo quando il simulatore ha il focus
-- Usabile da telefono: comandi, editor e pannelli si adattano allo schermo
-
-### 🔄 Aggiornamenti automatici
-Gli aggiornamenti arrivano dalle release GitHub e compaiono nella pagina Plugin come per ogni altro
-plugin.
-
----
+- WordPress 5.8+
+- PHP 7.4+
+- Browser moderno (Chrome, Firefox, Edge, Safari)
 
 ## Installazione
 
-1. Scarica lo ZIP dall'ultima [release](https://github.com/dadebertolino/pic-simulator/releases)
-2. In WordPress: **Plugin → Aggiungi nuovo → Carica plugin**, scegli lo ZIP e attiva
-3. Inserisci lo shortcode `[pic_simulator]` in una pagina
-
-La pagina **Impostazioni → WebPicSimulator** riassume shortcode, scorciatoie e funzionalità.
-
----
+1. Scaricare `pic-simulator.zip`
+2. WordPress Admin → Plugin → Aggiungi nuovo → Carica plugin
+3. Attivare "WebPicSimulator"
+4. Creare una pagina con lo shortcode `[pic_simulator]`
 
 ## Shortcode
 
+| Shortcode | Descrizione |
+|---|---|
+| `[pic_simulator]` | Simulatore completo |
+| `[pic_test_suite]` | Test suite automatica (22 test) |
+| `[pic_dashboard]` | Dashboard progetti (fase futura) |
+
+## Device PIC16 supportati (22)
+
+**18-pin:** PIC16F83, F84, F84A, F627A, F628A, F648A, F818, F819, F1847
+**20-pin:** PIC16F690
+**28-pin:** PIC16F870, F872, F873A, F876A, F882, F883, F886
+**40-pin:** PIC16F871, F874A, F877A, F884, F887
+
+## Periferiche core (13)
+
+| Periferica | Pannello UI |
+|---|---|
+| GPIO (A-E, 3-8 pin) | LED, switch, altFunc tooltip |
+| TMR0 (8-bit, prescaler) | Timer panel con flags |
+| TMR1 (16-bit, prescaler) | Timer panel |
+| TMR2 (8-bit, PR2, postscaler) | Timer panel + barra progresso |
+| CCP1/CCP2 (Capture/Compare/PWM) | Duty cycle bar |
+| USART (TX/RX asincrono) | Terminale seriale virtuale |
+| ADC (10-bit, 5-14 canali) | Slider potenziometri |
+| EEPROM (64-256 byte) | Memory viewer |
+| Comparatore (doppio, Vref) | LED uscite + slider tensione |
+| MSSP (SPI + I²C master/slave) | Bus log colorato + device list |
+| Bus I²C/SPI virtuali | Device esterni collegabili |
+| Bus 1-Wire virtuale | Timing detection, ROM commands |
+
+## Virtual Hardware — 28 componenti
+
+### GPIO diretto
+
+| Componente | Descrizione |
+|---|---|
+| 7-Segment (1 digit) | SVG, configurabile porta/bit/type (CC/CA) |
+| 7-Segment (4 digit MUX) | Multiplexing con latch, active low/high |
+| LED Bar | 1-8 LED, colore scelto (rosso/verde/giallo/blu) |
+| Push Buttons | 1-8 pulsanti momentanei, touch support |
+| DIP Switch | 1-8 switch toggle |
+| LCD HD44780 (8-bit) | Dimensioni 8x1→40x4, debug HD44780 con command log |
+| LCD HD44780 (4-bit) | Nibble sequencing, stessi display variabili |
+| RGB LED | Pallino colorato con glow, barre R/G/B, hex code |
+| Buzzer/Speaker | Nota musicale MIDI, frequenza Hz |
+| Keypad 4x4 | Griglia cliccabile, scansione righe/colonne |
+| RC Servo | SVG con lancetta rotante, pulse width, angolo 0-180° |
+| HC-SR04 Ultrasonic | Slider distanza 2-400cm, barra colorata, echo timing |
+| WS2812 NeoPixel Strip | 1-256 LED RGB, griglia configurabile (ledsPerRow), glow |
+| L293D H-Bridge | 2 motori DC con disco rotante, velocità PWM %, direzione |
+| KS0108 GLCD 128x64 | Canvas pixel, colore verde/blu/bianco |
+
+### I²C
+
+| Device | Indirizzo | Descrizione |
+|---|---|---|
+| 24C02 EEPROM | 0x50-0x53 | Griglia 16x16 hex, bytes usati evidenziati |
+| LM75 | 0x48-0x4F | Termometro 9-bit con slider |
+| TMP102 | 0x48-0x4B | 12-bit, alert threshold |
+| STTS751 | 0x48-0x4F | 12-bit ST, manufacturer ID |
+| MCP9808 | 0x18-0x1F | 13-bit, 3 soglie alert (upper/lower/critical) con badge colorati |
+| BMP280 | 0x76/0x77 | Temp + pressione, slider, registri calibrazione, debug panel |
+| SHT21 | 0x40 | Temp + umidità, CRC-8, doppio slider |
+| DS1307 RTC | 0x68 | Orologio digitale, registri BCD, Sync/Start-Stop |
+| DS3231 RTC | 0x68 | 2 allarmi, temperatura interna, retrocompatibile DS1307 |
+| PCF8563 RTC | 0x51 | NXP, VL bit, alarm flag, timer countdown |
+| PCF8574 I/O | 0x27/0x3F | Backpack LCD I²C (modulo Amazon) |
+| MCP23017 | 0x20-0x23 | 16-bit I/O, 2 porte, pin con direzione visualizzata |
+| SSD1306 OLED | 0x3C/0x3D | Canvas 128x64, pixel scale 1-3x, command log |
+
+### SPI
+
+| Device | Descrizione |
+|---|---|
+| 74HC595 | 8 LED output, shift/latch register hex |
+| MAX7219 | 8 digit 7-seg, intensity/scan/shutdown, BCD decode |
+| MCP3008 | 8 canali ADC 10-bit con slider |
+
+### 1-Wire
+
+| Device | Descrizione |
+|---|---|
+| DS18B20 | Scratchpad viewer, bus event log, ROM code, risoluzione 9-12 bit |
+
+## Esempi ASM (53)
+
+| Categoria | Esempi |
+|---|---|
+| Basic | LED Blink, Knight Rider, Binary Counter |
+| I/O | Button + LED |
+| Interrupts | TMR0 Interrupt |
+| EEPROM | Read/Write interno |
+| Arithmetic | 8-bit Addition, Multiply 8x8 |
+| Advanced | Lookup Table, Stack Demo |
+| USART | Serial Hello World, Serial Echo |
+| ADC | Read Channel 0, Threshold |
+| CCP/PWM | PWM LED Dimmer |
+| Timers | Timer1 Overflow |
+| Comparator | Voltage Comparator |
+| 877A | Multi-Port I/O, ADC + USART, Dual PWM |
+| Virtual HW | 7-Seg Counter, 7-Seg 4D MUX, LED Bar VU, Buttons+LEDs, DIP+7Seg, LCD 8-bit, LCD 4-bit, LCD I²C, Servo Sweep, Servo+ADC, HC-SR04, WS2812 RGB, L293D Motors, Buzzer Melody, Keypad Scanner, RGB Color Cycle, KS0108 GLCD |
+| I²C Devices | DS1307 RTC, DS3231 RTC+Temp, PCF8563 RTC, EEPROM 24C02, LM75, TMP102, STTS751, MCP9808 Alerts, BMP280, SHT21, MCP23017 I/O, SSD1306 OLED |
+| SPI Devices | 74HC595 Shift Reg, MAX7219 8-Digit, MCP3008 ADC |
+| 1-Wire | DS18B20 Read Temp |
+
+## Funzionalità simulatore
+
+- **Editor**: gutter unificata (breakpoint + numeri riga/indirizzi), scroll sincronizzato, Tab indent
+- **Breakpoint**: click sulla gutter, lista breakpoints, rimozione individuale
+- **Debug**: Step Into/Over/Out, Run, Animate, Reset
+- **Build report**: toast popup con Flash/RAM/EEPROM/Stack usage, overflow detection
+- **Stack**: overflow/underflow runtime con warning e stop automatico
+- **Memory viewer**: 4 tab (RAM, Program, EEPROM, Variables CBLOCK)
+- **Config VHW in ASM**: `; @VHW: type {config}` salvato/caricato automaticamente
+- **Export**: .hex (Intel HEX con __CONFIG), .map (disassembly), .asm (con VHW config)
+
+## Struttura file
+
 ```
-[pic_simulator]
-[pic_simulator height="600px" fullwidth="yes"]
+pic-simulator/                     # 140 file
+├── pic-simulator.php              # Plugin principale v3.1.0
+├── README.md
+├── uninstall.php
+│
+├── includes/                      # PHP backend
+│   ├── class-activator.php
+│   ├── class-deactivator.php
+│   ├── database/class-db-manager.php
+│   ├── api/ (projects, files, classes, assignments)
+│   └── public/class-dashboard-controller.php
+│
+├── templates/
+│   ├── simulator.php              # Template simulatore
+│   ├── test-suite.php
+│   └── dashboard.php
+│
+├── assets/
+│   ├── css/style.css              # 3.448 righe
+│   ├── data/devices/              # 22 JSON PIC16
+│   │
+│   └── js/
+│       ├── core/                  # Engine (7 file)
+│       │   ├── pic16-core.js      # CPU, istruzioni, RAM, stack
+│       │   ├── pic16-factory.js   # Factory device → CPU + periferiche
+│       │   ├── assembler.js       # ASM → 14-bit machine code
+│       │   ├── simulator.js       # Controller esecuzione
+│       │   ├── device-loader.js   # Carica JSON device
+│       │   ├── pic16-peripherals.js
+│       │   ├── storage-wp.js
+│       │   │
+│       │   └── peripherals/       # 13 moduli periferiche
+│       │       ├── gpio.js, tmr0.js, tmr1.js, tmr2.js
+│       │       ├── ccp.js, usart.js, adc.js, eeprom.js
+│       │       ├── comparator.js, mssp.js
+│       │       ├── virtual-bus.js, virtual-devices.js
+│       │       ├── onewire-bus.js
+│       │       │
+│       │       └── devices/       # 25 device virtuali
+│       │           ├── i2c-*.js   (15 file: sensori, RTC, EEPROM, I/O, OLED)
+│       │           ├── spi-*.js   (3 file: 74HC595, MAX7219, MCP3008)
+│       │           ├── ow-*.js    (1 file: DS18B20)
+│       │           └── gpio-*.js  (6 file: servo, HC-SR04, WS2812, KS0108, L293D, buzzer, keypad, RGB)
+│       │
+│       ├── ui/                    # 17 moduli UI
+│       │   ├── ui-manager.js      # Coordinatore + 53 esempi
+│       │   ├── ui-editor.js       # Editor + gutter + breakpoints
+│       │   ├── ui-toolbar.js      # Controlli + shortcuts
+│       │   ├── ui-virtual-hw.js   # Framework Virtual Hardware
+│       │   └── ui-*.js            # Registri, porte, memory, timers, etc.
+│       │
+│       └── ui/vhw/                # 28 componenti Virtual Hardware
+│           ├── vhw-7seg.js, vhw-lcd.js, vhw-led-bar.js, vhw-buttons.js
+│           ├── vhw-rtc.js, vhw-ds3231.js, vhw-pcf8563.js
+│           ├── vhw-eeprom.js, vhw-bmp280.js, vhw-lm75.js, vhw-sht21.js
+│           ├── vhw-tmp102.js, vhw-stts751.js, vhw-mcp9808.js
+│           ├── vhw-mcp23017.js, vhw-74hc595.js, vhw-max7219.js, vhw-mcp3008.js
+│           ├── vhw-ds18b20.js, vhw-servo.js, vhw-hcsr04.js
+│           ├── vhw-ws2812.js, vhw-ssd1306.js, vhw-ks0108.js
+│           ├── vhw-l293d.js, vhw-buzzer.js, vhw-keypad.js, vhw-rgb-led.js
 ```
 
-| Attributo | Default | Descrizione |
-|-----------|---------|-------------|
-| `height` | `800px` | Altezza del simulatore |
-| `fullwidth` | `no` | Con `yes` si espande a tutta la larghezza della finestra |
-
-È possibile inserire **un solo simulatore per pagina**: l'interfaccia usa identificatori fissi, e
-il secondo shortcode mostra un avviso al posto del simulatore.
-
-### Scorciatoie da tastiera
+## Keyboard shortcuts
 
 | Tasto | Azione |
-|-------|--------|
-| `F5` | Run / Stop |
-| `F6` | Animate |
-| `F8` | Step |
-| `F10` | Step Over |
-| `F11` | Schermo intero |
-| `Ctrl+S` | Salva file ASM |
-| `Ctrl+O` | Apri file ASM |
-| `Ctrl+N` | Nuovo programma |
-| `Ctrl+Invio` | Assembla |
-| `Esc` | Stop |
+|---|---|
+| F5 | Assembla |
+| Ctrl+F5 | Run/Stop |
+| F6 | Animate |
+| F7 / Esc | Stop |
+| F8 | Step Into |
+| Shift+F8 | Step Out |
+| F10 | Step Over |
 
-Su Mac, `Cmd` al posto di `Ctrl`.
+## Aggiungere un nuovo device virtuale
 
----
-
-## Esempi inclusi
-
-| # | File | Concetti |
-|---|------|----------|
-| 1 | `01_blink_led.asm` | Output, loop di ritardo, BSF/BCF |
-| 2 | `02_binary_counter.asm` | INCF, output multi-bit |
-| 3 | `03_button_led.asm` | Input, BTFSC/BTFSS |
-| 4 | `04_knight_rider.asm` | RLF/RRF, flag Carry |
-| 5 | `05_timer0_interrupt.asm` | TMR0, ISR, GIE/T0IE |
-| 6 | `06_external_interrupt.asm` | INT su RB0, INTE/INTF |
-| 7 | `07_eeprom.asm` | EEDATA, EECON1/EECON2 |
-| 8 | `08_lookup_table.asm` | RETLW, PCL, computed GOTO |
-| 9 | `09_subroutines_stack.asm` | CALL/RETURN, stack |
-| 10 | `10_state_machine.asm` | Macchina a stati (semaforo) |
-
----
-
-## Struttura cartelle
-
-```
-pic-simulator/
-├── pic-simulator.php        # Bootstrap, shortcode, pagina admin
-├── uninstall.php            # Pulizia alla disinstallazione
-├── inc/
-│   └── class-updater.php    # Aggiornamenti da GitHub Releases (condiviso)
-├── assets/
-│   ├── css/
-│   │   ├── style.css        # Interfaccia del simulatore
-│   │   └── db-admin-ui.css  # Design system admin (condiviso)
-│   └── js/
-│       ├── pic16f84a.js     # Core CPU: istruzioni, memoria, periferiche
-│       ├── assembler.js     # Assemblatore a due passate e disassemblatore
-│       ├── simulator.js     # Motore di esecuzione, tempo reale e breakpoint
-│       └── ui.js            # Controller dell'interfaccia
-├── templates/
-│   ├── simulator.php        # Template HTML del simulatore
-│   └── admin/
-│       └── settings.php     # Pagina informazioni
-├── examples/                # 10 programmi Assembly didattici
-└── tests/                   # Unit (node:test) ed E2E (Playwright), esclusi dallo ZIP
-```
-
----
-
-## Privacy
-
-Nessuna richiesta a servizi esterni: niente font da CDN, niente analytics, niente chiamate di rete
-durante l'uso. I sorgenti restano sul PC dello studente e lo stato della simulazione vive solo nel
-browser. Il plugin non scrive nulla nel database, a parte la cache dell'updater.
-
----
-
-## Limitazioni
-
-Questo è un simulatore didattico:
-- Non sostituisce MPLAB X né un programmatore reale
-- Il watchdog timer non è implementato: un programma senza `CLRWDT` non viene resettato, e SLEEP si risveglia solo con un interrupt abilitato
-- I tempi sono a livello di ciclo istruzione: non c'è simulazione al quarto di ciclo (Q1-Q4)
-- La scrittura in EEPROM è istantanea (sul chip richiede circa 4 ms); il clock esterno su RA4/T0CKI non è sincronizzato
-- L'assemblatore non supporta macro, `#include` di file e compilazione condizionale (`#ifdef`); `PAGESEL` non serve sul 16F84A e non è riconosciuto
-
----
-
-## Accessibilità (WCAG 2.1 AA)
-
-Verificata con axe-core negli E2E, sul simulatore appena aperto, con errori di assemblaggio, in
-esecuzione e a schermo intero, su desktop e su telefono.
-
-- Contrasto del testo ≥ 4,5:1 su tutti gli sfondi, compresi bit di STATUS accesi e pannello errori
-- Nome accessibile per tutti i controlli: pulsanti con sola icona, select degli esempi e della
-  velocità, slider di Animate (con il valore letto come "N istruzioni al secondo")
-- Messaggi di stato in una regione `role="status"`, annunciata dagli screen reader
-- Errori dell'assemblatore come testo, con il numero di riga
-
----
-
-## Note tecniche
-
-- **Tutto lato client**: CPU, assemblatore e motore sono classi JavaScript senza dipendenze; il PHP
-  registra solo asset, shortcode e pagina admin
-- **Tempo reale**: a ogni tick (~60 al secondo) il motore esegue i cicli che il chip avrebbe eseguito
-  nel tempo trascorso, con un tetto di 10 ms di calcolo per tick; se il browser resta indietro lo
-  segnala invece di accumulare ritardo
-- **Asset**: caricati solo nelle pagine che contengono lo shortcode, anche da blocchi, widget e page builder
-- **Sicurezza**: gli errori dell'assemblatore sono inseriti come testo, mai come HTML; nessun dato
-  inviato al server
-- **Auto-updater**: controlla GitHub Releases ogni 12h; `Update URI` impedisce che WordPress proponga
-  un plugin omonimo di wordpress.org
-
-### Sviluppo
-
-- `npm test`: unit test di CPU, assemblatore, motore ed esempi (`tests/unit/`, solo Node)
-- `npm run check-js`: sintassi dei file in `assets/js` e degli script inline nei file PHP
-- `composer install && composer phpcs`: WordPress Coding Standards e compatibilità con PHP 7.4+
-
-Test nel browser (Playwright): `npm ci`, `npx wp-env start`, `npm run env:setup`,
-`npx playwright test`. Senza Docker, `npm run env:playground` avvia WordPress Playground sulla
-stessa porta.
-
-La CI esegue a ogni push sintassi PHP 7.4–8.5, PHPCS, il controllo JavaScript, gli unit test e gli
-E2E; ogni notte gli E2E contro WordPress in sviluppo e PHP 8.4. Dettagli in [TESTING.md](TESTING.md).
-Un tag `vX.Y.Z` pubblica la release solo se la CI passa, se tag, header `Version` e `PICSIM_VERSION`
-coincidono e se il README ha la voce `### X.Y.Z`; lo ZIP allegato contiene la cartella
-`pic-simulator/` senza test e file di sviluppo.
-
----
-
-## Changelog
-
-### 1.2.0
-**CPU più fedele al chip reale, interfaccia per il telefono, accessibilità**
-
-Minor: chiude i difetti di fedeltà della CPU e quelli dell'interfaccia rimasti dopo la 1.1.0.
-
-**CPU:**
-- **Il Reset cancellava la EEPROM**, mentre sul chip resta: l'esempio 07 dichiarava che il contatore
-  sopravvive al reset e non succedeva. Ora EEPROM e memoria programma sopravvivono al Reset;
-  assemblare equivale a programmare il chip, quindi la EEPROM riparte cancellata (0xFF) più i dati `DE`
-- FSR tra 0x8C e 0xCF raggiungeva una zona separata invece dei GPR 0x0C–0x4F
-- Una scrittura tramite INDF saltava la logica dei registri speciali: scrivere PORTB via FSR non
-  aggiornava i pin, TRISB via FSR non funzionava
-- **TMR0 contava le istruzioni invece dei cicli**: GOTO, CALL e gli skip valgono 2 cicli anche per il
-  timer, e i conti di ritardo tornano col contatore dei cicli. Dopo una scrittura TMR0 resta fermo
-  due cicli, come nel datasheet; il salto al vettore di interrupt costa 2 cicli
-- SLEEP: Timer0 si ferma; il risveglio da INT, cambio su RB4–RB7 o fine scrittura EEPROM avviene
-  anche con GIE = 0, e con GIE = 1 il micro esegue l'istruzione dopo SLEEP prima della ISR
-- INTF e RBIF si alzano anche con l'interrupt disabilitato; le uscite RB4–RB7 non generano RBIF
-- Le locazioni non implementate (0x07, 0x50–0x7F) si leggono 0; la scrittura di PCL usa solo PCLATH<4:0>
-
-**Interfaccia:**
-- **Telefono**: l'editor spingeva fuori dallo schermo registri, porte e memoria; ora si dividono lo spazio
-- Stato, cicli, tempo simulato e istruzione corrente sono sempre visibili, non solo a schermo intero
-- **Step Over** esegue tutta la subroutine, anche un ritardo da centinaia di migliaia di cicli, senza
-  bloccare la pagina; prima si fermava dopo 10.000 cicli, dentro il ritardo
-- Durante Run il pulsante per rimuovere un breakpoint non rispondeva al click
-- Lo slider di Animate cambia ritmo anche mentre Animate gira
-- Export **Intel HEX** dalla toolbar; Save usa il nome del file o dell'esempio caricato; Step Over
-  anche nella mini-toolbar
-- Cmd su Mac funziona come Ctrl nelle scorciatoie
-- Messaggi di stato ed errori dell'assemblatore in italiano
-
-**Accessibilità (WCAG 2.1 AA):** contrasto del testo almeno 4,5:1, nome accessibile per tutti i
-controlli, messaggi di stato annunciati dagli screen reader; verificata con axe-core negli E2E.
-
-**Test:** 123 unit test e 53 E2E, axe compreso; nessun test `todo` rimasto.
-
-### 1.1.0
-**Run in tempo reale, assemblatore compatibile con MPASM, test e CI**
-
-Minor: corregge i difetti emersi da un'analisi completa del plugin e aggiunge test automatici.
-
-**Esecuzione:**
-- Run gira in tempo reale come il chip a 4 MHz. Prima eseguiva 1000 istruzioni al secondo, mille
-  volte meno: tra un cambio e l'altro dei LED negli esempi passavano da 30 a 400 secondi
-- Nuova scelta della velocità di Run: tempo reale, 1/10, 1/100, 1/1000 o massima. Lo slider regola
-  Animate ed è etichettato come tale
-- Il tempo simulato è mostrato accanto ai cicli
-
-**Correzioni del simulatore:**
-- **Il flag Z non veniva mai impostato** (dalla 1.0.0): ogni test su `STATUS,Z` dopo `MOVF`, `XORLW`,
-  `SUBWF`, `CLRF` e simili prendeva il ramo sbagliato. L'esempio 04 (Knight Rider) si spegneva al
-  primo passo invece di far scorrere il LED
-- La fine di una scrittura in EEPROM accendeva INTE (interrupt su RB0) se EEIE era attivo
-
-**Assemblatore:**
-- Diversi operandi venivano convertiti in silenzio in un valore sbagliato: `GOTO $` diventava
-  `GOTO 0`, `#define X PORTB` faceva sparire l'istruzione spostando tutte le etichette successive,
-  un simbolo non definito come `FETCH` diventava 0xFE, `B'0102'` diventava 2, `MOVLW V + 1`
-  ignorava il `+1`. Ora ogni operando produce il valore giusto o un errore sulla sua riga
-- Nuovi: espressioni, `HIGH`/`LOW`, `$`, etichette senza due punti, `CBLOCK` con virgole e `NOME:n`,
-  `SET`, `BANKSEL`, `RADIX` e `LIST R=`, `DT` con stringhe, `DE` nella EEPROM, nomi dei bit del file
-  `.inc` di Microchip (`NOT_RBPU`, `TMR0IE`…)
-- Controlli di intervallo su letterali, registri, bit, destinazione, indirizzi e memoria programma
-- `END` ferma la lettura come in MPASM; i caratteri (`'a'`) non vengono più resi maiuscoli
-
-**Sicurezza:**
-- Gli errori dell'assemblatore, che riportano l'operando così come scritto, erano inseriti come HTML:
-  un file `.asm` con un tag `<img onerror>`, aperto da un utente loggato, eseguiva script nel sito
-
-**Interfaccia:**
-- La mini-toolbar va a capo invece di essere tagliata nei temi stretti e sul telefono
-- Durante Run le porte si ridisegnano una volta per fotogramma, non a ogni scrittura su PORTB
-
-**WordPress:**
-- Updater 1.1.0: dopo l'aggiornamento riattiva il plugin solo se era attivo
-- `Update URI` nell'intestazione: WordPress non può più proporre un plugin omonimo di wordpress.org
-- Il `readme.txt` è stato rimosso: README e changelog stanno qui, come negli altri plugin
-
-**Test:** 99 unit test (CPU, assemblatore, motore, comportamento dei 10 esempi) e 38 E2E nel browser
-su desktop e telefono; CI a ogni push, run notturna su WordPress in sviluppo, rilascio automatico
-dello ZIP al tag.
-
-### 1.0.1
-**Correzioni di 17 bug e allineamento allo standard dei plugin DB**
-
-- Run, Step e Animate non partivano al primo click: un errore JavaScript bloccava ogni assemblaggio riuscito
-- Il flag T0IF non veniva mai impostato, quindi gli interrupt del Timer0 non scattavano
-- I breakpoint continuano a funzionare dopo un Reset
-- Un CBLOCK senza ENDC segnala un errore invece di produrre in silenzio un programma vuoto
-- Il valore di PORTA e PORTB mostrato tiene conto degli ingressi esterni, non solo del latch
-- Le celle di memoria e i campi TRIS non vengono più azzerati mentre si scrivono
-- Le scorciatoie da tastiera (F5, F11, Ctrl+S) non vengono più sottratte al resto della pagina
-- Gli asset vengono caricati anche con temi a blocchi, widget e page builder
-- Rimossa la dipendenza da Google Fonts: nessuna richiesta a domini esterni
-- Aggiornamenti automatici dalle release GitHub
-
-### 1.0.0
-- Versione iniziale MVP
-
----
+1. Creare `assets/js/core/peripherals/devices/i2c-newdevice.js` (device class)
+2. Creare `assets/js/ui/vhw/vhw-newdevice.js` (UI component)
+3. In `pic-simulator.php`: aggiungere nome ai array `$device_files` e `$vhw_files`
+4. In `ui-virtual-hw.js`: aggiungere entry in `_getDefaults()`, case in `addComponent()`
+5. In `simulator.php`: aggiungere `<option>` nel dropdown
 
 ## Licenza
 
-GPL v2 or later.  
-Sei libero di utilizzare, modificare e distribuire questo plugin.
+MIT — Prof. D. Bertolino
 
-**Disclaimer:** questo progetto non è affiliato con Microchip Technology Inc. "PIC" e "MPLAB" sono
-marchi registrati di Microchip Technology Inc.
+## Changelog
 
----
+### v3.1.0 (Marzo 2025)
+- **Virtual Hardware**: 28 componenti con pin configurabili e dialog di configurazione
+- **25 device virtuali** su I²C (15), SPI (3), 1-Wire (1), GPIO (6)
+- **Architettura modulare**: 1 file per device, 1 file per UI, enqueue automatico
+- **Bus 1-Wire** con timing detection per DS18B20
+- **Display grafici**: SSD1306 OLED 128x64 (I²C), KS0108 GLCD 128x64 (parallelo)
+- **Attuatori**: RC Servo (SVG rotante), L293D DC Motors (dual H-bridge), Buzzer
+- **Input**: Keypad 4x4 (cliccabile), HC-SR04 Ultrasonic (slider distanza)
+- **LED**: WS2812 NeoPixel (griglia configurabile fino a 256), RGB LED
+- **Sensori I²C**: LM75, TMP102, STTS751, MCP9808, BMP280, SHT21
+- **RTC I²C**: DS1307, DS3231 (allarmi + temp), PCF8563
+- **53 esempi ASM** in 16 categorie
+- **Salvataggio config VHW** nel sorgente ASM (tag `; @VHW:`)
+- **Export .asm** con configurazione VHW incorporata
+- **Duplicate [+]** button su ogni componente
+- **Conflict check** indirizzi I²C con warning
+- Fix: gutter editor unificata, breakpoint event delegation, toast build report
+- Fix: statistiche compilazione corrette per device, stack overflow runtime
 
-## Autore
-
-**Davide "the Prof." Bertolino**  
-🌐 [davidebertolino.it](https://www.davidebertolino.it)  
-✉️ info@davidebertolino.it
+### v3.0.0 (Gennaio 2025)
+- Architettura periferiche pluggabili
+- 22 device PIC16 supportati
+- 12 periferiche simulate
+- UI modulare (16 moduli)
+- Assembler multi-device
+- Supporto 4 bank RAM
+- __CONFIG nell'export .hex
+- Test suite automatica
