@@ -22,8 +22,8 @@ esercitano su un WordPress vero. La logica sta nel JavaScript, coperto dagli uni
 `release.yml` parte con un tag `vX.Y.Z`:
 
 1. esegue l'intera CI (`ci.yml`, E2E compresi);
-2. verifica che tag, header `Version`, `PICSIM_VERSION` e `Stable tag` del
-   `readme.txt` coincidano e che il `readme.txt` abbia la voce `= X.Y.Z =`;
+2. verifica che tag, header `Version`, `PICSIM_VERSION` e `**Versione:**` del
+   README coincidano e che il README abbia la voce di changelog `### X.Y.Z`;
 3. costruisce `pic-simulator-X.Y.Z.zip` con `git archive` (cartella radice
    `pic-simulator/`) e controlla che contenga il plugin e nessun file di sviluppo;
 4. pubblica la Release con lo ZIP e, come descrizione, la voce del changelog.
@@ -32,9 +32,9 @@ L'updater (`inc/class-updater.php`) propone l'aggiornamento ai siti leggendo
 l'ultima Release.
 
 ```bash
-# dopo aver aggiornato le tre versioni e il changelog in readme.txt
-git tag v1.0.2
-git push origin v1.0.2
+# dopo aver aggiornato le tre versioni e il changelog nel README
+git tag v1.1.0
+git push origin v1.1.0
 ```
 
 ## Run notturna
