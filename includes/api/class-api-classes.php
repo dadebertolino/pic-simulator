@@ -565,6 +565,7 @@ class API_Classes {
         return rest_ensure_response([
             'joined'  => true,
             'class'   => $this->prepare_class_response($class, false),
+            /* translators: %s: nome della classe */
             'message' => sprintf(__('Ti sei iscritto alla classe "%s".', 'webpicsimulator'), $class->name)
         ]);
     }
@@ -650,6 +651,7 @@ class API_Classes {
                 'display_name' => $user->display_name,
                 'email'        => $user->user_email
             ],
+            /* translators: %s: nome dello studente */
             'message' => sprintf(__('Studente %s aggiunto.', 'webpicsimulator'), $user->display_name)
         ]);
     }
@@ -662,7 +664,7 @@ class API_Classes {
         $student_id = (int) $request->get_param('student_id');
         $status = $request->get_param('status');
 
-        if (!in_array($status, ['active', 'suspended'])) {
+        if (!in_array($status, ['active', 'suspended'], true)) {
             return new \WP_Error(
                 'rest_invalid_status',
                 __('Stato non valido.', 'webpicsimulator'),

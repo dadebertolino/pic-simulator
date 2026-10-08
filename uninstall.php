@@ -67,10 +67,10 @@ $capabilities = [
 $roles = ['administrator', 'editor', 'author', 'contributor', 'subscriber'];
 
 foreach ($roles as $role_name) {
-    $role = get_role($role_name);
-    if ($role) {
+    $picsim_role = get_role($role_name);
+    if ($picsim_role) {
         foreach ($capabilities as $cap) {
-            $role->remove_cap($cap);
+            $picsim_role->remove_cap($cap);
         }
     }
 }
@@ -84,6 +84,9 @@ $wpdb->query(
      WHERE option_name LIKE '_transient_picsim_%' 
      OR option_name LIKE '_transient_timeout_picsim_%'"
 );
+
+// Cache dell'updater GitHub (componente condiviso dei plugin DB)
+$wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_dbgu_%' OR option_name LIKE '_transient_timeout_dbgu_%'");
 
 // =============================================================================
 // RIMOZIONE USER META

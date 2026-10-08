@@ -36,7 +36,7 @@ for (const file of walk(path.join(root, 'assets/js'), '.js', ['/vendor/'])) {
 }
 
 const phpFiles = [
-    ...walk(path.join(root, 'inc'), '.php', ['/lib/']),
+    ...walk(path.join(root, 'includes'), '.php', ['/lib/']),
     ...walk(path.join(root, 'templates'), '.php'),
     path.join(root, 'pic-simulator.php'),
 ];

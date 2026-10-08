@@ -1,15 +1,17 @@
 <?php
 /**
  * Plugin Name: WebPicSimulator
- * Plugin URI: https://example.com/webpicsimulator
+ * Plugin URI: https://www.davidebertolino.it/progetti/pic-simulator/
  * Description: Simulatore web-based per microcontrollori PIC16 mid-range. 22 device supportati, 12 periferiche simulate, terminale USART, ADC, CCP/PWM, MSSP con bus virtuali I²C/SPI. Shortcodes: [pic_simulator] per simulatore, [pic_test_suite] per test automatici, [pic_dashboard] per gestione progetti.
- * Version: 3.1.0
+ * Version: 3.2.0
  * Requires at least: 5.8
  * Requires PHP: 7.4
  * Author: Prof. D. Bertolino
- * Author URI: https://example.com
- * License: MIT
+ * Author URI: https://www.davidebertolino.it
+ * License: GPL v2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: webpicsimulator
+ * Update URI: https://github.com/dadebertolino/pic-simulator
  */
 
 // Impedisci accesso diretto
@@ -18,10 +20,17 @@ if (!defined('ABSPATH')) {
 }
 
 // Costanti
-define('PIC_SIM_VERSION', '3.1.0');
+define('PIC_SIM_VERSION', '3.2.0');
 define('PIC_SIM_DB_VERSION', '1.0.0');
 define('PIC_SIM_PATH', plugin_dir_path(__FILE__));
 define('PIC_SIM_URL', plugin_dir_url(__FILE__));
+define('PIC_SIM_PLUGIN_FILE', __FILE__);
+
+/* -------------------------------------------------------------------------
+ * GitHub Auto-Updater (componente condiviso)
+ * ---------------------------------------------------------------------- */
+require_once PIC_SIM_PATH . 'includes/class-updater.php';
+new DB_GitHub_Updater(PIC_SIM_PLUGIN_FILE, 'dadebertolino', 'pic-simulator');
 
 // =============================================================================
 // AUTOLOAD CLASSI
@@ -49,6 +58,10 @@ require_once PIC_SIM_PATH . 'includes/public/class-dashboard-controller.php';
 class PIC_Simulator_Plugin {
     
     private static $instance = null;
+    
+    /** Asset gia' accodati in questa richiesta (simulatore / test suite). */
+    private $assets_done = false;
+    private $test_assets_done = false;
     
     public static function get_instance() {
         if (null === self::$instance) {
@@ -141,12 +154,26 @@ class PIC_Simulator_Plugin {
         }
     }
     
-    public function enqueue_scripts() {
-        // Carica solo se shortcode presente o in pagina specifica
-        global $post;
-        if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'pic_simulator')) {
+    /**
+     * Accoda gli asset del simulatore.
+     *
+     * Dall'hook wp_enqueue_scripts solo se lo shortcode e' nel contenuto del
+     * post, cosi' il CSS finisce nell'head. Lo shortcode e il blocco lo
+     * richiamano con $force: il controllo sul contenuto non vede lo shortcode
+     * in blocchi riutilizzabili, widget, template FSE e page builder, e li'
+     * il simulatore restava senza CSS ne' JS.
+     */
+    public function enqueue_scripts($force = false) {
+        if ($this->assets_done) {
             return;
         }
+        if (true !== $force) {
+            global $post;
+            if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'pic_simulator')) {
+                return;
+            }
+        }
+        $this->assets_done = true;
         
         // CSS
         wp_enqueue_style(
@@ -156,11 +183,8 @@ class PIC_Simulator_Plugin {
             PIC_SIM_VERSION
         );
         
-        // Google Fonts
-        wp_enqueue_style(
-            'pic-simulator-fonts',
-            'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap'
-        );
+        // Nessun font da CDN esterno (GDPR): Inter e JetBrains Mono si usano
+        // se installati, altrimenti i font di sistema dello stack CSS.
         
         // JavaScript - Device Loader (prima di tutto)
         wp_enqueue_script(
@@ -453,6 +477,8 @@ class PIC_Simulator_Plugin {
             'theme' => 'dark'
         ], $atts);
         
+        $this->enqueue_scripts(true);
+        
         // Fullwidth override
         if ($atts['fullwidth'] === 'yes' || $atts['fullwidth'] === 'true' || $atts['fullwidth'] === '1') {
             $atts['width'] = '100vw';
@@ -467,7 +493,8 @@ class PIC_Simulator_Plugin {
     /**
      * Renderizza shortcode test suite
      */
-    public function render_test_suite($atts) {
+    public function render_test_suite($atts) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.Found -- firma degli shortcode
+        $this->enqueue_test_scripts(true);
         ob_start();
         include PIC_SIM_PATH . 'templates/test-suite.php';
         return ob_get_clean();
@@ -476,15 +503,20 @@ class PIC_Simulator_Plugin {
     /**
      * Enqueue script/style per test suite
      */
-    public function enqueue_test_scripts() {
-        global $post;
-        if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'pic_test_suite')) {
+    public function enqueue_test_scripts($force = false) {
+        if ($this->test_assets_done) {
             return;
         }
+        if (true !== $force) {
+            global $post;
+            if (!is_a($post, 'WP_Post') || !has_shortcode($post->post_content, 'pic_test_suite')) {
+                return;
+            }
+        }
+        $this->test_assets_done = true;
         
         // CSS
         wp_enqueue_style('pic-test-suite-style', PIC_SIM_URL . 'assets/css/test-suite.css', [], PIC_SIM_VERSION);
-        wp_enqueue_style('pic-simulator-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
         
         // Core JS (solo engine, no UI simulatore)
         $core_scripts = [
@@ -536,7 +568,8 @@ class PIC_Simulator_Plugin {
             'pic-simulator-block',
             PIC_SIM_URL . 'assets/js/block.js',
             ['wp-blocks', 'wp-element', 'wp-editor', 'wp-components'],
-            PIC_SIM_VERSION
+            PIC_SIM_VERSION,
+            false
         );
         
         register_block_type('pic-simulator/simulator', [
@@ -565,7 +598,7 @@ class PIC_Simulator_Plugin {
     public function admin_page() {
         ?>
         <div class="wrap">
-            <h1>WebPicSimulator <small>v<?php echo PIC_SIM_VERSION; ?></small></h1>
+            <h1>WebPicSimulator <small>v<?php echo esc_html(PIC_SIM_VERSION); ?></small></h1>
             <p>by Prof. D.Bertolino</p>
             
             <h2>Shortcodes Disponibili</h2>
@@ -616,7 +649,7 @@ class PIC_Simulator_Plugin {
             
             <h2>Database</h2>
             <p>
-                <strong>Versione DB:</strong> <?php echo get_option('picsim_db_version', 'non installato'); ?>
+                <strong>Versione DB:</strong> <?php echo esc_html(get_option('picsim_db_version', 'non installato')); ?>
             </p>
             <?php
             global $wpdb;
@@ -629,20 +662,25 @@ class PIC_Simulator_Plugin {
             ];
             echo '<ul>';
             foreach ($tables as $table) {
-                $exists = $wpdb->get_var("SHOW TABLES LIKE '$table'") === $table;
+                $exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table;
                 $status = $exists ? '✅' : '❌';
-                $count = $exists ? $wpdb->get_var("SELECT COUNT(*) FROM $table") : '-';
-                echo "<li>{$status} <code>{$table}</code> - {$count} record</li>";
+                // Nome di tabella dal prefisso di WordPress: un identificatore non
+                // si passa come placeholder (%i esiste solo da WordPress 6.2).
+                // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $count = $exists ? $wpdb->get_var('SELECT COUNT(*) FROM `' . esc_sql($table) . '`') : '-';
+                echo '<li>' . esc_html($status) . ' <code>' . esc_html($table) . '</code> - ' . esc_html($count) . ' record</li>';
             }
             echo '</ul>';
             
-            if (isset($_GET['reinstall_db']) && wp_verify_nonce($_GET['_wpnonce'], 'picsim_reinstall')) {
+            if (isset($_GET['reinstall_db'], $_GET['_wpnonce'])
+                && wp_verify_nonce(sanitize_text_field(wp_unslash($_GET['_wpnonce'])), 'picsim_reinstall')
+                && current_user_can('manage_options')) {
                 \PicSim\Activator::activate();
                 echo '<div class="notice notice-success"><p>Database reinstallato!</p></div>';
             }
             ?>
             <p>
-                <a href="<?php echo wp_nonce_url(admin_url('options-general.php?page=webpicsimulator&reinstall_db=1'), 'picsim_reinstall'); ?>" 
+                <a href="<?php echo esc_url(wp_nonce_url(admin_url('options-general.php?page=webpicsimulator&reinstall_db=1'), 'picsim_reinstall')); ?>" 
                    class="button" 
                    onclick="return confirm('Reinstallare le tabelle del database?');">
                     Reinstalla Tabelle DB
@@ -650,7 +688,7 @@ class PIC_Simulator_Plugin {
             </p>
             
             <h2>REST API Endpoints</h2>
-            <p>Base URL: <code><?php echo rest_url('picsim/v1/'); ?></code></p>
+            <p>Base URL: <code><?php echo esc_html(rest_url('picsim/v1/')); ?></code></p>
             <ul>
                 <li><code>GET/POST /projects</code> - Lista/Crea progetti</li>
                 <li><code>GET/PUT/DELETE /projects/{id}</code> - Singolo progetto</li>
@@ -666,7 +704,7 @@ class PIC_Simulator_Plugin {
                 $current_user = wp_get_current_user();
                 $is_teacher = current_user_can('picsim_manage_classes');
                 echo 'Utente corrente: <strong>' . esc_html($current_user->display_name) . '</strong> - ';
-                echo $is_teacher ? '✅ Docente' : '👤 Studente';
+                echo esc_html($is_teacher ? '✅ Docente' : '👤 Studente');
                 ?>
             </p>
         </div>
@@ -674,10 +712,52 @@ class PIC_Simulator_Plugin {
     }
     
     // === AJAX HANDLERS ===
+    //
+    // Salvataggio rapido dei progetti dal simulatore (storage-wp.js), su file
+    // JSON. Ogni utente ha una sua cartella: prima la cartella era comune e
+    // qualunque utente loggato poteva elencare, leggere, sovrascrivere e
+    // cancellare i progetti di tutti. Il nome della cartella contiene un hash
+    // non indovinabile, perche' il .htaccess non protegge su nginx.
     
-    private function get_projects_dir() {
+    private function get_projects_root() {
         $upload_dir = wp_upload_dir();
         return $upload_dir['basedir'] . '/pic-simulator-projects';
+    }
+    
+    /** Cartella dei progetti dell'utente corrente, creata al primo uso. */
+    private function get_projects_dir() {
+        $user_id = get_current_user_id();
+        $dir = $this->get_projects_root() . '/u' . $user_id . '-' . substr(wp_hash('picsim-projects-' . $user_id), 0, 16);
+        if (!is_dir($dir)) {
+            wp_mkdir_p($dir);
+            file_put_contents($dir . '/index.php', '<?php // Silence is golden');
+        }
+        return $dir;
+    }
+    
+    /**
+     * File di un progetto dell'utente corrente, o null. Accetta anche i file
+     * salvati nella cartella comune dalle versioni precedenti, ma solo se il
+     * JSON indica come autore l'utente corrente.
+     */
+    private function find_project_file($name) {
+        $own = $this->get_projects_dir() . '/' . $name . '.json';
+        if (file_exists($own)) {
+            return $own;
+        }
+        $legacy = $this->get_projects_root() . '/' . $name . '.json';
+        if (file_exists($legacy)) {
+            $data = json_decode(file_get_contents($legacy), true);
+            if (is_array($data) && (int) ($data['user_id'] ?? 0) === get_current_user_id()) {
+                return $legacy;
+            }
+        }
+        return null;
+    }
+    
+    /** Nome del progetto dalla richiesta, ripulito per l'uso come nome di file. */
+    private function request_project_name($source) {
+        return sanitize_file_name(wp_unslash($source['name'] ?? ''));
     }
     
     public function ajax_save_project() {
@@ -687,11 +767,13 @@ class PIC_Simulator_Plugin {
             wp_send_json_error(['message' => 'Login required']);
         }
         
-        $name = sanitize_file_name($_POST['name'] ?? '');
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- verificato da check_ajax_referer
+        $name = $this->request_project_name($_POST);
         if (empty($name)) {
             wp_send_json_error(['message' => 'Project name required']);
         }
         
+        // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verificato; il sorgente e' salvato come testo JSON e mai stampato come HTML
         $data = [
             'name' => $name,
             'source' => wp_unslash($_POST['source'] ?? ''),
@@ -701,10 +783,11 @@ class PIC_Simulator_Plugin {
             'modified' => current_time('c'),
             'device' => 'PIC16F84A'
         ];
+        // phpcs:enable
         
         $file = $this->get_projects_dir() . '/' . $name . '.json';
         
-        if (file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT))) {
+        if (file_put_contents($file, wp_json_encode($data, JSON_PRETTY_PRINT))) {
             wp_send_json_success(['message' => 'Project saved']);
         } else {
             wp_send_json_error(['message' => 'Failed to save']);
@@ -714,10 +797,9 @@ class PIC_Simulator_Plugin {
     public function ajax_load_project() {
         check_ajax_referer('pic_sim_nonce', 'nonce');
         
-        $name = sanitize_file_name($_GET['name'] ?? '');
-        $file = $this->get_projects_dir() . '/' . $name . '.json';
-        
-        if (!file_exists($file)) {
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verificato da check_ajax_referer
+        $file = $this->find_project_file($this->request_project_name($_GET));
+        if (!$file) {
             wp_send_json_error(['message' => 'Project not found']);
         }
         
@@ -728,15 +810,21 @@ class PIC_Simulator_Plugin {
     public function ajax_list_projects() {
         check_ajax_referer('pic_sim_nonce', 'nonce');
         
-        $projects = [];
-        $files = glob($this->get_projects_dir() . '/*.json');
+        $files = glob($this->get_projects_dir() . '/*.json') ?: [];
+        // Progetti salvati dalle versioni precedenti nella cartella comune: solo i propri.
+        foreach (glob($this->get_projects_root() . '/*.json') ?: [] as $legacy) {
+            if ($this->find_project_file(basename($legacy, '.json')) === $legacy) {
+                $files[] = $legacy;
+            }
+        }
         
+        $projects = [];
         foreach ($files as $file) {
             $data = json_decode(file_get_contents($file), true);
             if ($data) {
                 $projects[] = [
                     'name' => $data['name'] ?? basename($file, '.json'),
-                    'modified' => $data['modified'] ?? date('c', filemtime($file)),
+                    'modified' => $data['modified'] ?? gmdate('c', filemtime($file)),
                     'device' => $data['device'] ?? 'PIC16F84A'
                 ];
             }
@@ -756,10 +844,10 @@ class PIC_Simulator_Plugin {
             wp_send_json_error(['message' => 'Login required']);
         }
         
-        $name = sanitize_file_name($_GET['name'] ?? '');
-        $file = $this->get_projects_dir() . '/' . $name . '.json';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- verificato da check_ajax_referer
+        $file = $this->find_project_file($this->request_project_name($_GET));
         
-        if (file_exists($file) && unlink($file)) {
+        if ($file && unlink($file)) {
             wp_send_json_success(['message' => 'Project deleted']);
         } else {
             wp_send_json_error(['message' => 'Failed to delete']);

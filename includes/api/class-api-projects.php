@@ -301,7 +301,7 @@ class API_Projects {
 
         // Validazione device
         $allowed_devices = ['PIC16F84A', 'PIC16F628A', 'PIC16F877A'];
-        if (!in_array($data['device'], $allowed_devices)) {
+        if (!in_array($data['device'], $allowed_devices, true)) {
             return new \WP_Error(
                 'rest_invalid_device',
                 __('Dispositivo non valido.', 'webpicsimulator'),

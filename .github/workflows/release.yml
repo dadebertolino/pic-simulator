@@ -27,11 +27,11 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           HEADER=$(grep -oP '^\s*\*\s*Version:\s*\K[0-9.]+' pic-simulator.php)
-          CONST=$(grep -oP "define\('PICSIM_VERSION',\s*'\K[0-9.]+" pic-simulator.php)
+          CONST=$(grep -oP "define\('PIC_SIM_VERSION',\s*'\K[0-9.]+" pic-simulator.php)
           README=$(grep -oP '^\*\*Versione:\*\*\s*\K[0-9.]+' README.md)
           echo "tag=$TAG header=$HEADER const=$CONST readme=$README"
           if [ "$TAG" != "$HEADER" ] || [ "$TAG" != "$CONST" ] || [ "$TAG" != "$README" ]; then
-            echo "::error::La versione del tag ($TAG) non coincide con quella del plugin (header: $HEADER, PICSIM_VERSION: $CONST, README: $README)."
+            echo "::error::La versione del tag ($TAG) non coincide con quella del plugin (header: $HEADER, PIC_SIM_VERSION: $CONST, README: $README)."
             exit 1
           fi
 
@@ -57,9 +57,11 @@ jobs:
       - name: Verifica contenuto ZIP
         run: |
           ZIP="pic-simulator-${VERSION}.zip"
-          for f in pic-simulator.php README.md uninstall.php inc/class-updater.php \
-                   assets/js/pic16f84a.js assets/js/assembler.js assets/js/simulator.js assets/js/ui.js \
-                   assets/css/style.css templates/simulator.php examples/01_blink_led.asm; do
+          for f in pic-simulator.php README.md uninstall.php includes/class-updater.php \
+                   includes/class-activator.php includes/api/class-api-projects.php \
+                   assets/js/core/pic16-core.js assets/js/core/assembler.js assets/js/core/simulator.js \
+                   assets/js/ui/ui-manager.js assets/data/devices/pic16f84a.json \
+                   assets/css/style.css templates/simulator.php; do
             unzip -l "$ZIP" "pic-simulator/$f" > /dev/null || { echo "::error::Manca $f nello ZIP"; exit 1; }
           done
           if unzip -l "$ZIP" | grep -E 'pic-simulator/(tests|bin|\.github|node_modules|vendor)/|package(-lock)?\.json|playwright\.config|\.wp-env\.json|composer\.json|phpcs\.xml'; then

@@ -45,7 +45,7 @@ class Activator {
         
         $charset_collate = $wpdb->get_charset_collate();
         
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 
         // Tabella progetti
         self::create_projects_table($charset_collate);
@@ -350,7 +350,7 @@ class Activator {
         ];
         
         foreach ($tables as $table) {
-            if ($wpdb->get_var("SHOW TABLES LIKE '$table'") !== $table) {
+            if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
                 return false;
             }
         }

@@ -21,8 +21,8 @@ if (!defined('ABSPATH')) exit;
         <div class="pic-test-placeholder">Press "Run All" to start tests</div>
     </div>
     <footer class="pic-test-footer">
-        <span>WebPicSimulator v<?php echo PIC_SIM_VERSION; ?></span>
-        <span>&copy; <?php echo date('Y'); ?> Prof. D. Bertolino</span>
+        <span>WebPicSimulator v<?php echo esc_html(PIC_SIM_VERSION); ?></span>
+        <span>&copy; <?php echo esc_html(gmdate('Y')); ?> Prof. D. Bertolino</span>
     </footer>
 </div>
 

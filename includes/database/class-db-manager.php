@@ -995,7 +995,7 @@ class DB_Manager {
                 'user_id'    => $user_id,
                 'project_id' => $project_id,
                 'action'     => $action,
-                'details'    => $details ? json_encode($details) : null,
+                'details'    => $details ? wp_json_encode($details) : null,
                 'ip_address' => $this->get_client_ip(),
                 'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) 
                     ? sanitize_text_field($_SERVER['HTTP_USER_AGENT']) 

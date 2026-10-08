@@ -17,7 +17,7 @@ if ($is_fullwidth) {
 }
 ?>
 
-<div id="pic-simulator-app" class="pic-sim-container pic-sim-<?php echo $theme; ?><?php echo $is_fullwidth ? ' pic-sim-fullwidth' : ''; ?>" style="<?php echo $style; ?>">
+<div id="pic-simulator-app" class="pic-sim-container pic-sim-<?php echo esc_attr($theme); ?><?php echo $is_fullwidth ? ' pic-sim-fullwidth' : ''; ?>" style="<?php echo esc_attr($style); ?>">
     <div class="pic-sim-wrapper">
         <!-- Header -->
         <header class="pic-header">

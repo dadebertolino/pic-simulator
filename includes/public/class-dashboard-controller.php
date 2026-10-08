@@ -47,11 +47,7 @@ class Dashboard_Controller {
             PIC_SIM_VERSION
         );
 
-        // Google Fonts
-        wp_enqueue_style(
-            'picsim-fonts',
-            'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap'
-        );
+        // Nessun font da CDN esterno (GDPR): stack di sistema in dashboard.css.
 
         // API Client (PRIMA di tutto)
         wp_enqueue_script(
@@ -158,20 +154,19 @@ class Dashboard_Controller {
 
         $is_teacher = current_user_can('picsim_manage_classes') ? 'true' : 'false';
 
+        // Il ruolo passa in un attributo data-: lo script resta statico.
         return sprintf(
-            '<div id="picsim-dashboard-root" style="%s"></div>
+            '<div id="picsim-dashboard-root" style="%s" data-is-teacher="%s"></div>
             <script>
                 document.addEventListener("DOMContentLoaded", function() {
-                    if (typeof PicSim !== "undefined" && PicSim.Dashboard) {
-                        PicSim.Dashboard.init(
-                            document.getElementById("picsim-dashboard-root"),
-                            { isTeacher: %s }
-                        );
+                    var root = document.getElementById("picsim-dashboard-root");
+                    if (root && typeof PicSim !== "undefined" && PicSim.Dashboard) {
+                        PicSim.Dashboard.init(root, { isTeacher: root.dataset.isTeacher === "true" });
                     }
                 });
             </script>',
             esc_attr($style),
-            $is_teacher
+            esc_attr($is_teacher)
         );
     }
 

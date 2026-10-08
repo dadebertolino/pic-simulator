@@ -294,7 +294,7 @@ class API_Files {
         // Verifica estensione
         $allowed_extensions = ['asm', 'inc', 'txt', 'hex'];
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-        if (!in_array($ext, $allowed_extensions)) {
+        if (!in_array($ext, $allowed_extensions, true)) {
             return new \WP_Error(
                 'rest_invalid_extension',
                 __('Estensione file non permessa. Usa: .asm, .inc, .txt, .hex', 'webpicsimulator'),
@@ -318,6 +318,7 @@ class API_Files {
         if ($count >= $max_files) {
             return new \WP_Error(
                 'rest_max_files',
+                /* translators: %d: numero massimo di file */
                 sprintf(__('Limite massimo di %d file raggiunto.', 'webpicsimulator'), $max_files),
                 ['status' => 400]
             );
@@ -328,6 +329,7 @@ class API_Files {
         if (strlen($content) > $max_size) {
             return new \WP_Error(
                 'rest_file_too_large',
+                /* translators: %d: dimensione massima in KB */
                 sprintf(__('File troppo grande. Massimo %d KB.', 'webpicsimulator'), $max_size / 1024),
                 ['status' => 400]
             );
@@ -383,6 +385,7 @@ class API_Files {
         if (strlen($content) > $max_size) {
             return new \WP_Error(
                 'rest_file_too_large',
+                /* translators: %d: dimensione massima in KB */
                 sprintf(__('File troppo grande. Massimo %d KB.', 'webpicsimulator'), $max_size / 1024),
                 ['status' => 400]
             );
@@ -472,7 +475,7 @@ class API_Files {
         // Verifica estensione
         $allowed_extensions = ['asm', 'inc', 'txt', 'hex'];
         $ext = strtolower(pathinfo($new_filename, PATHINFO_EXTENSION));
-        if (!in_array($ext, $allowed_extensions)) {
+        if (!in_array($ext, $allowed_extensions, true)) {
             return new \WP_Error(
                 'rest_invalid_extension',
                 __('Estensione file non permessa.', 'webpicsimulator'),

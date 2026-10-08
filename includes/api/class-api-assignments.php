@@ -562,6 +562,7 @@ class API_Assignments {
             return new \WP_Error(
                 'rest_has_submissions',
                 sprintf(
+                    /* translators: %d: numero di consegne */
                     __('L\'assegnazione ha %d consegne. Usa force=true per eliminarla.', 'webpicsimulator'),
                     $submissions_count
                 ),
@@ -978,7 +979,7 @@ class API_Assignments {
         }
 
         $result = $this->db->update_assignment($assignment_id, [
-            'due_date' => date('Y-m-d H:i:s', $timestamp)
+            'due_date' => gmdate('Y-m-d H:i:s', $timestamp)
         ]);
 
         // Aggiorna anche due_date di tutti i progetti submission
