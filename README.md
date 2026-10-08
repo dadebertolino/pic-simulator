@@ -43,9 +43,10 @@ Timer0, vettore di interrupt a 0x004, stack hardware a 8 livelli che avvolge.
 
 ### ▶️ Esecuzione e debug
 - Run, Step, Step Over, Animate e Reset
+- Step Over esegue l'intera subroutine, anche un ritardo da centinaia di migliaia di cicli, e si ferma all'istruzione dopo la `CALL` (i breakpoint interni lo fermano prima)
 - **Run in tempo reale** come il chip a 4 MHz (un ciclo istruzione al µs), oppure rallentato
   (1/10, 1/100, 1/1000) o alla massima velocità del browser; il tempo simulato è mostrato accanto ai cicli
-- Animate da 1 a 100 istruzioni al secondo, per seguire il programma riga per riga
+- Animate da 1 a 100 istruzioni al secondo, per seguire il programma riga per riga; la velocità si cambia anche mentre gira
 - Breakpoint cliccabili sui numeri di riga
 - Pannelli: Registri, bit di STATUS, Stack, Memoria (RAM/Programma/EEPROM), TMR0
 - Celle di RAM ed EEPROM modificabili a mano durante l'esecuzione
@@ -53,9 +54,11 @@ Timer0, vettore di interrupt a 0x004, stack hardware a 8 livelli che avvolge.
 
 ### 🎓 Uso in classe
 - 10 esempi progressivi, dal blink LED alla macchina a stati
-- Load e Save dei sorgenti `.asm` dal PC locale
+- Load e Save dei sorgenti `.asm` dal PC locale, con il nome del file caricato
+- Export Intel HEX del programma assemblato, pronto per un programmatore reale
 - Modalità a schermo intero
 - Scorciatoie da tastiera, attive solo quando il simulatore ha il focus
+- Usabile da telefono: comandi, editor e pannelli si adattano allo schermo
 
 ### 🔄 Aggiornamenti automatici
 Gli aggiornamenti arrivano dalle release GitHub e compaiono nella pagina Plugin come per ogni altro
@@ -99,7 +102,11 @@ il secondo shortcode mostra un avviso al posto del simulatore.
 | `F11` | Schermo intero |
 | `Ctrl+S` | Salva file ASM |
 | `Ctrl+O` | Apri file ASM |
+| `Ctrl+N` | Nuovo programma |
+| `Ctrl+Invio` | Assembla |
 | `Esc` | Stop |
+
+Su Mac, `Cmd` al posto di `Ctrl`.
 
 ---
 
@@ -163,7 +170,19 @@ Questo è un simulatore didattico:
 - I tempi sono a livello di ciclo istruzione: non c'è simulazione al quarto di ciclo (Q1-Q4)
 - La scrittura in EEPROM è istantanea (sul chip richiede circa 4 ms); il clock esterno su RA4/T0CKI non è sincronizzato
 - L'assemblatore non supporta macro, `#include` di file e compilazione condizionale (`#ifdef`); `PAGESEL` non serve sul 16F84A e non è riconosciuto
-- L'export Intel HEX esiste nel codice (`Simulator.exportHex()`) ma non è ancora collegato a un comando dell'interfaccia
+
+---
+
+## Accessibilità (WCAG 2.1 AA)
+
+Verificata con axe-core negli E2E, sul simulatore appena aperto, con errori di assemblaggio, in
+esecuzione e a schermo intero, su desktop e su telefono.
+
+- Contrasto del testo ≥ 4,5:1 su tutti gli sfondi, compresi bit di STATUS accesi e pannello errori
+- Nome accessibile per tutti i controlli: pulsanti con sola icona, select degli esempi e della
+  velocità, slider di Animate (con il valore letto come "N istruzioni al secondo")
+- Messaggi di stato in una regione `role="status"`, annunciata dagli screen reader
+- Errori dell'assemblatore come testo, con il numero di riga
 
 ---
 

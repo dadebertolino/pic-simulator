@@ -38,6 +38,10 @@ class Simulator {
         this.onStop = null;
         this.onError = null;
         this.onBreakpoint = null;
+        this.onStepOverDone = null;
+        
+        this.stepOverTarget = null;   // { pc, sp } durante uno Step Over
+        this.stepOverSpeed = 1;
     }
 
     // === ASSEMBLY ===
@@ -116,43 +120,36 @@ class Simulator {
         }
     }
 
+    /**
+     * Step Over: su una CALL esegue l'intera subroutine e si ferma
+     * all'istruzione dopo la CALL, allo stesso livello di stack (cosi' una
+     * chiamata ricorsiva non lo ferma prima). Gira nel ciclo di Run alla
+     * massima velocita', senza limite di cicli: anche un ritardo da
+     * centinaia di migliaia di cicli finisce in pochi millisecondi senza
+     * bloccare la pagina. I breakpoint dentro la subroutine lo fermano.
+     *
+     * Restituisce 'call' se e' partita l'esecuzione (fine annunciata da
+     * onStepOverDone), 'step' se l'istruzione non era una CALL, false se
+     * non c'e' un programma.
+     */
     stepOver() {
-        if (!this.assemblyResult?.success) return false;
+        if (!this.assemblyResult?.success || this.running) return false;
         
-        const currentOpcode = this.cpu.programMemory[this.cpu.PC & 0x3FF];
-        
-        // Check if CALL instruction
-        if ((currentOpcode >> 11) === 0x04) {
-            // Set temporary breakpoint after CALL
-            const returnAddr = (this.cpu.PC + 1) & 0x1FFF;
-            const hadBreakpoint = this.cpu.breakpoints.has(returnAddr);
-            
-            if (!hadBreakpoint) {
-                this.cpu.setBreakpoint(returnAddr);
-            }
-            
-            this.run();
-            
-            // Will stop at breakpoint, then we remove it if it wasn't there before
-            if (!hadBreakpoint) {
-                // Clean up in onBreakpoint or after stop
-            }
-        } else {
+        const opcode = this.cpu.programMemory[this.cpu.PC & 0x3FF];
+        if ((opcode >> 11) !== 0x04) {
             this.step();
+            return 'step';
         }
-    }
-
-    stepOut() {
-        if (!this.assemblyResult?.success) return false;
         
-        // Run until RETURN or RETFIE
-        const checkReturn = () => {
-            const opcode = this.cpu.programMemory[this.cpu.PC & 0x3FF];
-            return opcode === 0x0008 || opcode === 0x0009;
-        };
+        this.stepOverTarget = { pc: (this.cpu.PC + 1) & 0x1FFF, sp: this.cpu.stackPointer };
+        this.stepOverSpeed = this.speedFactor;
+        this.speedFactor = Infinity;
         
-        this.runUntil(checkReturn, 10000);
-        this.step(); // Execute the RETURN
+        this.saveState();
+        this.cpu.step(); // la CALL
+        this.stepCount++;
+        this.run();
+        return 'call';
     }
 
     run() {
@@ -203,6 +200,15 @@ class Simulator {
             this.cpu.step();
             this.stepCount++;
             
+            const over = this.stepOverTarget;
+            if (over && this.cpu.PC === over.pc && this.cpu.stackPointer === over.sp) {
+                this.stop();
+                if (this.onStepOverDone) {
+                    this.onStepOverDone();
+                }
+                break;
+            }
+            
             if (this.cpu.breakpoints.has(this.cpu.PC)) {
                 this.stop();
                 if (this.onBreakpoint) {
@@ -225,25 +231,13 @@ class Simulator {
         }
     }
 
-    runUntil(condition, maxSteps = 100000) {
-        let steps = 0;
-        while (steps < maxSteps && !condition()) {
-            this.cpu.step();
-            this.stepCount++;
-            steps++;
-            
-            if (this.cpu.breakpoints.has(this.cpu.PC)) {
-                break;
-            }
-        }
-        
-        if (this.onUpdate) {
-            this.onUpdate();
-        }
-    }
-
     stop() {
         this.running = false;
+        // Uno Step Over interrotto (Stop, breakpoint) restituisce la velocita' scelta.
+        if (this.stepOverTarget) {
+            this.speedFactor = this.stepOverSpeed;
+            this.stepOverTarget = null;
+        }
         if (this.runInterval) {
             clearInterval(this.runInterval);
             this.runInterval = null;

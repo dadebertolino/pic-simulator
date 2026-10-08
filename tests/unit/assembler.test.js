@@ -57,12 +57,12 @@ describe('etichette e simboli', () => {
     });
 
     test('etichetta duplicata', () => {
-        assert.match(errors('L: NOP\nL: NOP')[0].message, /Duplicate label/);
+        assert.match(errors('L: NOP\nL: NOP')[0].message, /Etichetta duplicata/);
     });
 
     test('simbolo non definito: errore, non un esadecimale letto per meta\'', () => {
         // FETCH finiva in parseInt("FETC", 16) = 0xFE
-        assert.match(errors('    GOTO FETCH')[0].message, /Undefined symbol: FETCH/);
+        assert.match(errors('    GOTO FETCH')[0].message, /Simbolo non definito: FETCH/);
     });
 
     test('nomi dei bit come nel file .inc di Microchip', () => {
@@ -123,12 +123,12 @@ describe('espressioni e letterali', () => {
     });
 
     for (const [source, pattern] of [
-        ["    MOVLW B'0102'", /Invalid number/],
-        ['    MOVLW 0xZZ', /Invalid number/],
-        ['    MOVLW 12abc', /Invalid number/],
-        ['    MOVLW 4/0', /Division by zero/],
-        ['    MOVLW (1 + 2', /Missing '\)'/],
-        ['    MOVLW 1 +', /Incomplete expression/],
+        ["    MOVLW B'0102'", /Numero non valido/],
+        ['    MOVLW 0xZZ', /Numero non valido/],
+        ['    MOVLW 12abc', /Numero non valido/],
+        ['    MOVLW 4/0', /Divisione per zero/],
+        ['    MOVLW (1 + 2', /Manca '\)'/],
+        ['    MOVLW 1 +', /Espressione incompleta/],
     ]) {
         test(`rifiuta ${source.trim()}`, () => {
             assert.match(errors(source)[0].message, pattern);
@@ -138,18 +138,18 @@ describe('espressioni e letterali', () => {
 
 describe('controlli di intervallo e operandi', () => {
     for (const [source, pattern] of [
-        ['    MOVLW .300', /Literal out of range/],
-        ['    MOVLW -129', /Literal out of range/],
-        ['    ADDWF 0x20, 2', /Destination \(W or F\) out of range/],
-        ['    BSF PORTB, 8', /Bit number out of range/],
-        ['    CLRF 0x100', /File register out of range/],
-        ['    GOTO 0x400', /Address out of range/],
-        ['    ORG 0x3FF\n    NOP\n    NOP', /outside program memory/],
-        ['    MOVLW 1, 2', /Too many operands for MOVLW/],
-        ['    MOVF', /Missing operand for MOVF/],
-        ['    BSF PORTB', /Missing operand for BSF/],
-        ['    RETURN 1', /Too many operands for RETURN/],
-        ['    FOO 1', /Unknown instruction: FOO/],
+        ['    MOVLW .300', /Letterale fuori intervallo/],
+        ['    MOVLW -129', /Letterale fuori intervallo/],
+        ['    ADDWF 0x20, 2', /Destinazione \(W o F\) fuori intervallo/],
+        ['    BSF PORTB, 8', /Numero di bit fuori intervallo/],
+        ['    CLRF 0x100', /Registro fuori intervallo/],
+        ['    GOTO 0x400', /Indirizzo fuori intervallo/],
+        ['    ORG 0x3FF\n    NOP\n    NOP', /fuori dalla memoria programma/],
+        ['    MOVLW 1, 2', /Troppi operandi per MOVLW/],
+        ['    MOVF', /Operando mancante per MOVF/],
+        ['    BSF PORTB', /Operando mancante per BSF/],
+        ['    RETURN 1', /Troppi operandi per RETURN/],
+        ['    FOO 1', /Istruzione sconosciuta: FOO/],
     ]) {
         test(`errore su ${source.trim().replace(/\n\s*/g, ' / ')}`, () => {
             assert.match(errors(source).map(e => e.message).join('\n'), pattern);

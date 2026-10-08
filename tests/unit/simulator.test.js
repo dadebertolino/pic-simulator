@@ -193,3 +193,87 @@ describe('Run a tempo', () => {
         assert.ok(period > 0.1 && period < 0.4, `periodo: ${period} s`);
     });
 });
+
+describe('Step Over', () => {
+    // CALL DELAY con un ritardo da ~200.000 cicli, come nel programma iniziale.
+    const SOURCE = '    CALL DELAY\n    NOP\nL:  GOTO L\n' +
+        'DELAY: MOVLW 0xFF\n    MOVWF 0x20\nD1: MOVLW 0xFF\n    MOVWF 0x21\n' +
+        'D2: DECFSZ 0x21, F\n    GOTO D2\n    DECFSZ 0x20, F\n    GOTO D1\n    RETURN';
+
+    function overSim(source = SOURCE) {
+        const sim = make();
+        const clock = { t: 0 };
+        sim.now = () => clock.t;
+        sim.loadSource(source);
+        return { sim, clock };
+    }
+
+    /** Esegue i tick finche' Step Over non finisce (o un limite di sicurezza). */
+    function drain(sim, clock) {
+        clearInterval(sim.runInterval);
+        for (let i = 0; i < 1000 && sim.running; i++) {
+            clock.t += 16;
+            sim.runTick();
+            clearInterval(sim.runInterval);
+        }
+    }
+
+    test('su una CALL esegue tutta la subroutine, senza limite di cicli', () => {
+        const { sim, clock } = overSim();
+        let done = 0;
+        sim.onStepOverDone = () => done++;
+        assert.equal(sim.stepOver(), 'call');
+        drain(sim, clock);
+        assert.equal(done, 1);
+        assert.equal(sim.cpu.PC, 1);
+        assert.equal(sim.cpu.stackPointer, 0);
+        assert.ok(sim.cpu.cycles > 190000, `cicli: ${sim.cpu.cycles}`);
+    });
+
+    test('restituisce la velocita\' di Run scelta', () => {
+        const { sim, clock } = overSim();
+        sim.setSpeedFactor(0.01);
+        sim.stepOver();
+        assert.equal(sim.speedFactor, Infinity);
+        drain(sim, clock);
+        assert.equal(sim.speedFactor, 0.01);
+    });
+
+    test('un breakpoint dentro la subroutine lo ferma', () => {
+        const { sim, clock } = overSim();
+        sim.toggleBreakpoint(9); // DECFSZ 0x20, F
+        let hit = null;
+        let done = 0;
+        sim.onBreakpoint = addr => { hit = addr; };
+        sim.onStepOverDone = () => done++;
+        sim.stepOver();
+        drain(sim, clock);
+        assert.equal(hit, 9);
+        assert.equal(done, 0);
+        assert.equal(sim.speedFactor, 1);
+    });
+
+    test('su un\'istruzione che non e\' una CALL fa uno Step', () => {
+        const { sim } = overSim('    NOP\n    NOP');
+        assert.equal(sim.stepOver(), 'step');
+        assert.equal(sim.cpu.PC, 1);
+        assert.equal(sim.running, false);
+    });
+
+    test('una CALL ricorsiva non si ferma ai ritorni piu\' profondi', () => {
+        // SUB richiama se stessa finche' 0x20 arriva a 4: i ritorni a
+        // "RETURN" (0x006) avvengono tre volte, a livelli di stack diversi.
+        const { sim, clock } = overSim(
+            '    CALL SUB\n    NOP\nL:  GOTO L\nSUB: INCF 0x20, F\n    BTFSS 0x20, 2\n    CALL SUB\n    RETURN');
+        // Fino alla CALL interna del primo livello (PC 5, stack 1).
+        while (sim.cpu.PC !== 5) sim.step();
+        assert.equal(sim.cpu.stackPointer, 1);
+        
+        sim.stepOver();
+        drain(sim, clock);
+        assert.equal(sim.cpu.PC, 6);
+        assert.equal(sim.cpu.stackPointer, 1, 'stesso livello della CALL, non uno piu\' profondo');
+        assert.equal(sim.cpu.ram[0x20], 4);
+    });
+
+});

@@ -42,7 +42,8 @@ defined('ABSPATH') || exit;
             <span class="picsim__toolbar-sep"></span>
             <button class="picsim__btn" id="btn-load" title="Apri file (Ctrl+O)">📂 Load</button>
             <button class="picsim__btn" id="btn-save" title="Salva file (Ctrl+S)">💾 Save</button>
-            <select id="examples-select" class="picsim__select" title="Carica esempio">
+            <button class="picsim__btn" id="btn-hex" title="Esporta il programma in Intel HEX">⬇ HEX</button>
+            <select id="examples-select" class="picsim__select" title="Carica esempio" aria-label="Carica un esempio">
                 <option value="">📚 Esempi...</option>
                 <option value="01_blink_led">01 - Blink LED</option>
                 <option value="02_binary_counter">02 - Contatore Binario</option>
@@ -58,7 +59,7 @@ defined('ABSPATH') || exit;
             <span class="picsim__toolbar-sep"></span>
             <span class="picsim__speed-group" title="Velocità di Run rispetto al chip reale a 4 MHz">
                 <span>▶</span>
-                <select id="run-speed" class="picsim__select">
+                <select id="run-speed" class="picsim__select" aria-label="Velocità di Run">
                     <option value="1" selected>Tempo reale</option>
                     <option value="0.1">1/10</option>
                     <option value="0.01">1/100</option>
@@ -68,7 +69,7 @@ defined('ABSPATH') || exit;
             </span>
             <span class="picsim__speed-group">
                 <span>⏯</span>
-                <input type="range" id="speed-slider" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità di Animate (istruzioni al secondo)">
+                <input type="range" id="speed-slider" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità di Animate (istruzioni al secondo)" aria-label="Velocità di Animate" aria-valuetext="10 istruzioni al secondo">
                 <span id="speed-value" class="picsim__speed-val">10 Hz</span>
             </span>
         </div>
@@ -93,17 +94,19 @@ defined('ABSPATH') || exit;
     
     <!-- MINI TOOLBAR (solo modalità normale) -->
     <div class="picsim__mini-toolbar">
-        <button class="picsim__mbtn" id="btn-new2" title="Nuovo">📄</button>
-        <button class="picsim__mbtn picsim__mbtn--primary" id="btn-assemble2">▶ Assembla</button>
-        <button class="picsim__mbtn picsim__mbtn--success" id="btn-run2">▶ Run</button>
-        <button class="picsim__mbtn picsim__mbtn--warning" id="btn-animate2">⏯</button>
-        <button class="picsim__mbtn picsim__mbtn--danger" id="btn-stop2" disabled>■</button>
-        <button class="picsim__mbtn" id="btn-step2">⤵</button>
-        <button class="picsim__mbtn" id="btn-reset2">↺</button>
+        <button class="picsim__mbtn" id="btn-new2" title="Nuovo programma (Ctrl+N)" aria-label="Nuovo programma">📄</button>
+        <button class="picsim__mbtn picsim__mbtn--primary" id="btn-assemble2" title="Assembla (Ctrl+Invio)">▶ Assembla</button>
+        <button class="picsim__mbtn picsim__mbtn--success" id="btn-run2" title="Run (F5)">▶ Run</button>
+        <button class="picsim__mbtn picsim__mbtn--warning" id="btn-animate2" title="Animate (F6)" aria-label="Animate">⏯</button>
+        <button class="picsim__mbtn picsim__mbtn--danger" id="btn-stop2" title="Stop (Esc)" aria-label="Stop" disabled>■</button>
+        <button class="picsim__mbtn" id="btn-step2" title="Step (F8)" aria-label="Step">⤵</button>
+        <button class="picsim__mbtn" id="btn-step-over2" title="Step Over (F10)" aria-label="Step Over">⤳</button>
+        <button class="picsim__mbtn" id="btn-reset2" title="Reset" aria-label="Reset">↺</button>
         <span class="picsim__mini-sep"></span>
-        <button class="picsim__mbtn" id="btn-load2">📂</button>
-        <button class="picsim__mbtn" id="btn-save2">💾</button>
-        <select id="examples-select2" class="picsim__mini-select">
+        <button class="picsim__mbtn" id="btn-load2" title="Apri file (Ctrl+O)" aria-label="Apri file">📂</button>
+        <button class="picsim__mbtn" id="btn-save2" title="Salva file (Ctrl+S)" aria-label="Salva file">💾</button>
+        <button class="picsim__mbtn" id="btn-hex2" title="Esporta il programma in Intel HEX" aria-label="Esporta Intel HEX">HEX</button>
+        <select id="examples-select2" class="picsim__mini-select" title="Carica esempio" aria-label="Carica un esempio">
             <option value="">📚</option>
             <option value="01_blink_led">01</option>
             <option value="02_binary_counter">02</option>
@@ -117,7 +120,7 @@ defined('ABSPATH') || exit;
             <option value="10_state_machine">10</option>
         </select>
         <span class="picsim__mini-sep"></span>
-        <select id="run-speed2" class="picsim__mini-select" title="Velocità di Run rispetto al chip reale a 4 MHz">
+        <select id="run-speed2" class="picsim__mini-select" title="Velocità di Run rispetto al chip reale a 4 MHz" aria-label="Velocità di Run">
             <option value="1" selected>▶ Reale</option>
             <option value="0.1">▶ 1/10</option>
             <option value="0.01">▶ 1/100</option>
@@ -126,7 +129,7 @@ defined('ABSPATH') || exit;
         </select>
         <span class="picsim__speed-group">
             <span class="picsim__speed-label">⏯</span>
-            <input type="range" id="speed-slider2" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità di Animate (istruzioni al secondo)">
+            <input type="range" id="speed-slider2" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità di Animate (istruzioni al secondo)" aria-label="Velocità di Animate" aria-valuetext="10 istruzioni al secondo">
             <span id="speed-value2" class="picsim__speed-val">10 Hz</span>
         </span>
     </div>
@@ -229,7 +232,7 @@ defined('ABSPATH') || exit;
                     </div>
                     <div class="picsim__timer-info">
                         <span>Prescaler: <span id="prescaler-value">1:2</span></span>
-                        <span>Source: <span id="tmr0-source">Internal</span></span>
+                        <span>Sorgente: <span id="tmr0-source">interna</span></span>
                     </div>
                 </div>
             </div>
@@ -255,12 +258,12 @@ defined('ABSPATH') || exit;
     
     <!-- FOOTER -->
     <footer class="picsim__footer">
-        <!-- Info simulazione (solo fullscreen) -->
+        <!-- Stato della simulazione -->
         <div class="picsim__footer-left">
             <span class="picsim__status-dot" id="status-dot"></span>
-            <span id="status-text">Ready</span>
+            <span id="status-text" role="status">Pronto</span>
             <span class="picsim__footer-sep">|</span>
-            <span>Cycles: <strong id="cycles-count">0</strong></span>
+            <span>Cicli: <strong id="cycles-count">0</strong></span>
             <span class="picsim__footer-sep">|</span>
             <span title="Tempo trascorso sul chip simulato a 4 MHz">Tempo: <strong id="sim-time">0 µs</strong></span>
             <span class="picsim__footer-sep">|</span>
@@ -269,7 +272,7 @@ defined('ABSPATH') || exit;
         
         <!-- Copyright (sempre visibile, centrato) -->
         <div class="picsim__footer-center">
-            © <?php echo esc_html(gmdate('Y')); ?> Davide "the Prof." Bertolino
+            <span>© <?php echo esc_html(gmdate('Y')); ?> Davide "the Prof." Bertolino</span>
             <span class="picsim__footer-sep">—</span>
             <a href="https://www.davidebertolino.it" target="_blank">www.davidebertolino.it</a>
             <span class="picsim__footer-sep">—</span>
@@ -297,7 +300,7 @@ defined('ABSPATH') || exit;
 function initPicSim() {
     if (typeof PIC16F84A === 'undefined' || typeof PIC16Assembler === 'undefined' || 
         typeof Simulator === 'undefined' || typeof SimulatorUI === 'undefined') {
-        document.getElementById('status-text').textContent = 'Error: Scripts not loaded';
+        document.getElementById('status-text').textContent = 'Errore: script del simulatore non caricati';
         return;
     }
     
@@ -363,8 +366,8 @@ function initPicSim() {
     
     // === MINI TOOLBAR ===
     [['btn-new2','btn-new'],['btn-assemble2','btn-assemble'],['btn-run2','btn-run'],['btn-animate2','btn-animate'],
-     ['btn-stop2','btn-stop'],['btn-step2','btn-step'],['btn-reset2','btn-reset'],
-     ['btn-load2','btn-load'],['btn-save2','btn-save']].forEach(([m,n]) => {
+     ['btn-stop2','btn-stop'],['btn-step2','btn-step'],['btn-step-over2','btn-step-over'],['btn-reset2','btn-reset'],
+     ['btn-load2','btn-load'],['btn-save2','btn-save'],['btn-hex2','btn-hex']].forEach(([m,n]) => {
         const mb = document.getElementById(m), nb = document.getElementById(n);
         if (mb && nb) {
             mb.addEventListener('click', () => nb.click());
@@ -372,34 +375,15 @@ function initPicSim() {
         }
     });
     
-    // === SPEED SLIDER ===
-    const slider1 = document.getElementById('speed-slider');
-    const slider2 = document.getElementById('speed-slider2');
-    const speedVal1 = document.getElementById('speed-value');
-    const speedVal2 = document.getElementById('speed-value2');
-    const speeds = [1000, 500, 100, 50, 10];
-    const labels = ['1 Hz', '2 Hz', '10 Hz', '20 Hz', '100 Hz'];
-    
-    function updateSpeed(val) {
-        const idx = parseInt(val) - 1;
-        ui.animateSpeed = speeds[idx] || 100;
-        const label = labels[idx] || '10 Hz';
-        if (speedVal1) speedVal1.textContent = label;
-        if (speedVal2) speedVal2.textContent = label;
-        if (slider1) slider1.value = val;
-        if (slider2) slider2.value = val;
-    }
-    
-    slider1?.addEventListener('input', e => updateSpeed(e.target.value));
-    slider2?.addEventListener('input', e => updateSpeed(e.target.value));
+    // Velocita' di Run e di Animate: le gestisce SimulatorUI.initControls().
     
     // === ESEMPI ===
     function loadEx(v) {
         if (!v) return;
         fetch('<?php echo esc_js(PICSIM_URL); ?>examples/' + v + '.asm')
             .then(r => r.ok ? r.text() : Promise.reject())
-            .then(c => { ui.fullReset(); ui.setSource(c); ui.setStatus('Caricato: ' + v, 'success'); })
-            .catch(() => ui.setStatus('Errore', 'error'));
+            .then(c => { ui.fullReset(); ui.setSource(c); ui.fileName = v + '.asm'; ui.setStatus('Caricato: ' + v, 'success'); })
+            .catch(() => ui.setStatus('Impossibile caricare l\'esempio ' + v, 'error'));
     }
     document.getElementById('examples-select')?.addEventListener('change', function() { loadEx(this.value); this.value = ''; });
     document.getElementById('examples-select2')?.addEventListener('change', function() { loadEx(this.value); this.value = ''; });
