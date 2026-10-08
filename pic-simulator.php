@@ -3,7 +3,7 @@
  * Plugin Name: WebPicSimulator
  * Plugin URI: https://www.davidebertolino.it/progetti/pic-simulator/
  * Description: Simulatore web-based per microcontrollori PIC16F84A. Uso: shortcode [pic_simulator]
- * Version: 1.0.1
+ * Version: 1.1.0
  * Author: Prof. D. Bertolino
  * Author URI: https://www.davidebertolino.it
  * License: GPL v2 or later
@@ -11,6 +11,7 @@
  * Text Domain: webpicsimulator
  * Requires at least: 5.8
  * Requires PHP: 7.4
+ * Update URI: https://github.com/dadebertolino/pic-simulator
  */
 
 // Impedisci accesso diretto
@@ -19,7 +20,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Costanti
-define('PICSIM_VERSION', '1.0.1');
+define('PICSIM_VERSION', '1.1.0');
 define('PICSIM_PATH', plugin_dir_path(__FILE__));
 define('PICSIM_URL', plugin_dir_url(__FILE__));
 define('PICSIM_PLUGIN_FILE', __FILE__);

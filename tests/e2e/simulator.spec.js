@@ -109,6 +109,44 @@ test.describe( 'esecuzione e debug', () => {
 		expect( ( await cpuState( page ) ).cycles ).toBe( cycles );
 	} );
 
+	test( 'in tempo reale il LED dell\'esempio 01 lampeggia', async ( { page } ) => {
+		// Regressione: a 1000 istruzioni al secondo il LED cambiava ogni 2 minuti.
+		await openSimulator( page );
+		await page.locator( '#examples-select2' ).selectOption( '01_blink_led' );
+		await expect( status( page ) ).toHaveText( 'Caricato: 01_blink_led' );
+		await expect( page.locator( '#run-speed2' ) ).toHaveValue( '1' );
+
+		await button( page, 'run' ).click();
+		const rb0 = page.locator( '#portb-pins .picsim__pin[data-bit="0"]' );
+		await expect( rb0 ).toHaveClass( /picsim__pin--high/, { timeout: 3000 } );
+		await expect( rb0 ).toHaveClass( /picsim__pin--low/, { timeout: 3000 } );
+		await expect( rb0 ).toHaveClass( /picsim__pin--high/, { timeout: 3000 } );
+		await button( page, 'stop' ).click();
+
+		await expect( page.locator( '#sim-time' ) ).toHaveText( /^\d+\.\d (ms)$|^\d+\.\d{3} s$/ );
+	} );
+
+	test( 'la velocita\' di Run si sceglie e le due select restano allineate', async ( { page } ) => {
+		await openSimulator( page );
+		await setSource( page, 'LOOP: INCF 0x20, F\n    GOTO LOOP' );
+		await assemble( page );
+
+		await page.locator( '#run-speed2' ).selectOption( '0.001' );
+		await expect( page.locator( '#run-speed' ) ).toHaveValue( '0.001' );
+		expect( await page.evaluate( () => window.picSim.simulator.speedFactor ) ).toBe( 0.001 );
+
+		// 1/1000 del tempo reale = 1000 cicli al secondo.
+		await button( page, 'run' ).click();
+		await page.waitForTimeout( 1000 );
+		await button( page, 'stop' ).click();
+		const slow = ( await cpuState( page ) ).cycles;
+		expect( slow ).toBeGreaterThan( 500 );
+		expect( slow ).toBeLessThan( 2000 );
+
+		await page.locator( '#run-speed2' ).selectOption( 'max' );
+		expect( await page.evaluate( () => window.picSim.simulator.speedFactor ) ).toBe( Infinity );
+	} );
+
 	test( 'Animate avanza un passo alla volta', async ( { page } ) => {
 		await openSimulator( page );
 		await setSource( page, 'LOOP: INCF 0x20, F\n    GOTO LOOP' );

@@ -10,14 +10,20 @@ class Simulator {
         
         // Stato simulazione
         this.running = false;
-        this.speed = 1000; // Hz simulati
-        this.realTimeMode = false;
         this.clockFrequency = 4000000; // 4MHz default
+        // Velocita' di Run come frazione del tempo reale: 1 = un ciclo
+        // istruzione ogni 4 periodi di clock, come sul chip; Infinity = il
+        // piu' veloce possibile.
+        this.speedFactor = 1;
         
         // Timer per esecuzione
         this.runInterval = null;
         this.stepCount = 0;
         this.startTime = 0;
+        this.tickMs = 16;          // ~60 aggiornamenti al secondo
+        this.tickBudgetMs = 10;    // tempo di calcolo massimo per tick
+        this.now = () => performance.now(); // sostituibile nei test
+        this.lagging = false;      // la CPU non riesce a stare al passo
         
         // Source code
         this.sourceCode = '';
@@ -153,31 +159,69 @@ class Simulator {
         if (!this.assemblyResult?.success) return;
         
         this.running = true;
-        this.startTime = performance.now();
+        this.startTime = this.now();
+        this.syncClock();
         
-        const stepsPerTick = Math.max(1, Math.floor(this.speed / 60));
+        this.runInterval = setInterval(() => this.runTick(), this.tickMs);
+    }
+
+    /** Ciclo istruzione al secondo da simulare (Infinity = massima velocita'). */
+    cyclesPerSecond() {
+        return this.clockFrequency / 4 * this.speedFactor;
+    }
+
+    /** Riallinea l'orologio reale a quello simulato, da qui in avanti. */
+    syncClock() {
+        this.clockOriginTime = this.now();
+        this.clockOriginCycles = this.cpu.cycles;
+        this.lagging = false;
+    }
+
+    /**
+     * Esegue i cicli che la CPU simulata avrebbe eseguito nel tempo reale
+     * trascorso. Il numero di istruzioni per tick non e' fisso: dipende
+     * dalla velocita' scelta e dal tempo davvero passato, cosi' un tick in
+     * ritardo recupera. Ogni tick ha comunque un tetto di tempo di calcolo,
+     * perche' la pagina resti reattiva.
+     */
+    runTick() {
+        if (!this.running) return;
         
-        this.runInterval = setInterval(() => {
-            for (let i = 0; i < stepsPerTick; i++) {
-                if (!this.running) break;
-                
-                this.cpu.step();
-                this.stepCount++;
-                
-                // Check breakpoint
-                if (this.cpu.breakpoints.has(this.cpu.PC)) {
-                    this.stop();
-                    if (this.onBreakpoint) {
-                        this.onBreakpoint(this.cpu.PC);
-                    }
-                    break;
-                }
-            }
+        const start = this.now();
+        const rate = this.cyclesPerSecond();
+        const target = isFinite(rate)
+            ? this.clockOriginCycles + (start - this.clockOriginTime) / 1000 * rate
+            : Infinity;
+        const deadline = start + this.tickBudgetMs;
+        
+        let steps = 0;
+        while (this.running && this.cpu.cycles < target) {
+            // Leggere l'orologio costa: lo si fa ogni 1024 istruzioni.
+            if ((++steps & 0x3FF) === 0 && this.now() > deadline) break;
             
-            if (this.onUpdate) {
-                this.onUpdate();
+            this.cpu.step();
+            this.stepCount++;
+            
+            if (this.cpu.breakpoints.has(this.cpu.PC)) {
+                this.stop();
+                if (this.onBreakpoint) {
+                    this.onBreakpoint(this.cpu.PC);
+                }
+                break;
             }
-        }, 16); // ~60fps update
+        }
+        
+        // Se la CPU resta indietro di oltre 100 ms non si accumula debito:
+        // si riparte da adesso, altrimenti a ogni pausa (scheda in secondo
+        // piano, breakpoint di un altro tick) seguirebbe una raffica.
+        if (this.running && isFinite(rate) && target - this.cpu.cycles > rate * 0.1) {
+            this.syncClock();
+            this.lagging = true;
+        }
+        
+        if (this.onUpdate) {
+            this.onUpdate();
+        }
     }
 
     runUntil(condition, maxSteps = 100000) {
@@ -328,8 +372,8 @@ class Simulator {
     }
 
     getExecutionStats() {
-        const elapsed = (performance.now() - this.startTime) / 1000;
-        const simTime = this.cpu.cycles * 4 / this.clockFrequency;
+        const elapsed = (this.now() - this.startTime) / 1000;
+        const simTime = this.getSimulatedTime();
         
         return {
             cycles: this.cpu.cycles,
@@ -341,18 +385,21 @@ class Simulator {
         };
     }
 
-    setSpeed(hz) {
-        this.speed = hz;
-        
-        // Restart if running
-        if (this.running) {
-            this.stop();
-            this.run();
-        }
+    /** Frazione del tempo reale (1, 0.1, ...) o Infinity per la massima. */
+    setSpeedFactor(factor) {
+        this.speedFactor = factor;
+        // Cambiando ritmo in corsa si riparte da adesso, senza recuperi.
+        this.syncClock();
     }
 
     setClockFrequency(hz) {
         this.clockFrequency = hz;
+        this.syncClock();
+    }
+
+    /** Tempo trascorso sul chip simulato, in secondi. */
+    getSimulatedTime() {
+        return this.cpu.cycles * 4 / this.clockFrequency;
     }
 
     // === EXPORT ===

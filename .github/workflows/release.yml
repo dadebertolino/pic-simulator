@@ -23,23 +23,23 @@ jobs:
 
       # L'updater ricava la versione dal tag: se non coincide con quella del plugin,
       # WordPress continuerebbe a proporre l'aggiornamento anche dopo averlo installato
-      - name: Verifica coerenza versione tag / plugin / readme.txt
+      - name: Verifica coerenza versione tag / plugin / README
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           HEADER=$(grep -oP '^\s*\*\s*Version:\s*\K[0-9.]+' pic-simulator.php)
           CONST=$(grep -oP "define\('PICSIM_VERSION',\s*'\K[0-9.]+" pic-simulator.php)
-          STABLE=$(grep -oP '^Stable tag:\s*\K[0-9.]+' readme.txt)
-          echo "tag=$TAG header=$HEADER const=$CONST stable=$STABLE"
-          if [ "$TAG" != "$HEADER" ] || [ "$TAG" != "$CONST" ] || [ "$TAG" != "$STABLE" ]; then
-            echo "::error::La versione del tag ($TAG) non coincide con quella del plugin (header: $HEADER, PICSIM_VERSION: $CONST, Stable tag: $STABLE)."
+          README=$(grep -oP '^\*\*Versione:\*\*\s*\K[0-9.]+' README.md)
+          echo "tag=$TAG header=$HEADER const=$CONST readme=$README"
+          if [ "$TAG" != "$HEADER" ] || [ "$TAG" != "$CONST" ] || [ "$TAG" != "$README" ]; then
+            echo "::error::La versione del tag ($TAG) non coincide con quella del plugin (header: $HEADER, PICSIM_VERSION: $CONST, README: $README)."
             exit 1
           fi
 
       - name: Verifica voce di changelog
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          if ! grep -q "^= $TAG =\$" readme.txt; then
-            echo "::error::Nel readme.txt manca la voce di changelog '= $TAG ='."
+          if ! grep -q "^### $TAG\$" README.md; then
+            echo "::error::Nel README manca la voce di changelog '### $TAG'."
             exit 1
           fi
 
@@ -57,7 +57,7 @@ jobs:
       - name: Verifica contenuto ZIP
         run: |
           ZIP="pic-simulator-${VERSION}.zip"
-          for f in pic-simulator.php readme.txt uninstall.php inc/class-updater.php \
+          for f in pic-simulator.php README.md uninstall.php inc/class-updater.php \
                    assets/js/pic16f84a.js assets/js/assembler.js assets/js/simulator.js assets/js/ui.js \
                    assets/css/style.css templates/simulator.php examples/01_blink_led.asm; do
             unzip -l "$ZIP" "pic-simulator/$f" > /dev/null || { echo "::error::Manca $f nello ZIP"; exit 1; }
@@ -67,10 +67,10 @@ jobs:
             exit 1
           fi
 
-      # Descrizione della release: la voce del changelog del readme.txt
+      # Descrizione della release: la voce del changelog del README
       - name: Note di rilascio
         run: |
-          awk -v v="$VERSION" '$0=="= "v" ="{p=1; next} p&&/^= [0-9]/{exit} p' readme.txt > release-notes.md
+          awk -v v="$VERSION" '$0=="### "v{p=1; print "## "v; next} p&&/^(### [0-9]|---|## )/{exit} p' README.md > release-notes.md
           cat release-notes.md
 
       - name: Crea/aggiorna Release con lo ZIP

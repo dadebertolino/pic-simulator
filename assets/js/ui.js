@@ -34,7 +34,12 @@ class SimulatorUI {
         this.simulator.onUpdate = () => this.update();
         this.simulator.onBreakpoint = (addr) => this.onBreakpoint(addr);
         this.simulator.onError = (msg) => this.showError(msg);
-        this.cpu.onPortChange = (port) => this.updatePort(port);
+        // Durante Run update() ridisegna le porte a ogni tick: aggiornarle
+        // anche a ogni scrittura significherebbe migliaia di ridisegni al
+        // secondo in un loop che scrive su PORTB.
+        this.cpu.onPortChange = (port) => {
+            if (!this.simulator.running) this.updatePort(port);
+        };
     }
 
     init() {
@@ -185,6 +190,14 @@ class SimulatorUI {
         document.getElementById('btn-load')?.addEventListener('click', () => this.loadFile());
         document.getElementById('btn-save')?.addEventListener('click', () => this.saveFile());
         document.getElementById('file-input')?.addEventListener('change', (e) => this.handleFileLoad(e));
+        
+        // Velocita' di Run: due select (toolbar completa e mini) sincronizzate.
+        const runSpeeds = ['run-speed', 'run-speed2'].map(id => document.getElementById(id)).filter(Boolean);
+        runSpeeds.forEach(select => select.addEventListener('change', () => {
+            const value = select.value;
+            runSpeeds.forEach(other => { other.value = value; });
+            this.simulator.setSpeedFactor(value === 'max' ? Infinity : parseFloat(value));
+        }));
         
         const speedSlider = document.getElementById('speed-slider');
         if (speedSlider) {
@@ -735,6 +748,15 @@ class SimulatorUI {
         
         document.getElementById('cycles-count').textContent = s.cycles.toLocaleString();
         
+        const simTime = document.getElementById('sim-time');
+        if (simTime) {
+            simTime.textContent = this.formatTime(this.simulator.getSimulatedTime());
+            // La CPU del browser non riesce a tenere la velocita' scelta.
+            const lagging = this.simulator.running && this.simulator.lagging;
+            simTime.classList.toggle('picsim__sim-time--lagging', lagging);
+            simTime.title = lagging ? 'Il browser non riesce a simulare a questa velocità' : '';
+        }
+        
         const instr = this.simulator.getCurrentInstruction();
         document.getElementById('current-instruction').textContent = `${instr.address.toString(16).toUpperCase().padStart(3, '0')}: ${instr.disassembly}`;
         
@@ -745,6 +767,13 @@ class SimulatorUI {
         const opt = s.OPTION;
         document.getElementById('prescaler-value').textContent = (opt & 0x08) ? 'WDT' : '1:' + (1 << ((opt & 0x07) + 1));
         document.getElementById('tmr0-source').textContent = (opt & 0x20) ? 'External' : 'Internal';
+    }
+
+    /** Secondi in µs, ms o s, con tre cifre significative circa. */
+    formatTime(seconds) {
+        if (seconds < 1e-3) return (seconds * 1e6).toFixed(0) + ' µs';
+        if (seconds < 1) return (seconds * 1e3).toFixed(1) + ' ms';
+        return seconds.toFixed(3) + ' s';
     }
 
     updateStack() {
