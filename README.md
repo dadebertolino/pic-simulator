@@ -25,7 +25,9 @@ Timer0, vettore di interrupt a 0x004, stack hardware a 8 livelli che avvolge.
 - Stack hardware a 8 livelli
 - Timer0 con prescaler configurabile e clock interno o esterno (RA4/T0CKI)
 - Interrupt: Timer0, INT esterno su RB0, cambio su RB4-RB7, fine scrittura EEPROM
-- EEPROM con la sequenza di sblocco 0x55/0xAA
+- EEPROM con la sequenza di sblocco 0x55/0xAA: sopravvive al Reset e si cancella (0xFF) solo quando si riassembla, come riprogrammando il chip
+- Timer0 conta i cicli istruzione (due per GOTO, CALL e skip) e resta fermo due cicli dopo una scrittura
+- SLEEP con risveglio da INT, cambio su RB4-RB7 e fine scrittura EEPROM, anche con GIE = 0
 
 ### 🛠️ Assemblatore compatibile con MPASM
 - Due passate con risoluzione delle etichette in avanti
@@ -157,9 +159,9 @@ browser. Il plugin non scrive nulla nel database, a parte la cache dell'updater.
 
 Questo è un simulatore didattico:
 - Non sostituisce MPLAB X né un programmatore reale
-- Il watchdog timer è dichiarato ma non implementato
-- I tempi di ciclo sono approssimati: non c'è simulazione al quarto di ciclo
-- Alcuni dettagli di temporizzazione sono semplificati (scrittura EEPROM istantanea, inibizione di TMR0 dopo la scrittura)
+- Il watchdog timer non è implementato: un programma senza `CLRWDT` non viene resettato, e SLEEP si risveglia solo con un interrupt abilitato
+- I tempi sono a livello di ciclo istruzione: non c'è simulazione al quarto di ciclo (Q1-Q4)
+- La scrittura in EEPROM è istantanea (sul chip richiede circa 4 ms); il clock esterno su RA4/T0CKI non è sincronizzato
 - L'assemblatore non supporta macro, `#include` di file e compilazione condizionale (`#ifdef`); `PAGESEL` non serve sul 16F84A e non è riconosciuto
 - L'export Intel HEX esiste nel codice (`Simulator.exportHex()`) ma non è ancora collegato a un comando dell'interfaccia
 

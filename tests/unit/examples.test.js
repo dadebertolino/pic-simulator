@@ -76,10 +76,20 @@ describe('esempi', () => {
         assert.deepEqual(counter, [0, 1, 2, 3, 4]);
     });
 
-    test('07 EEPROM: il contatore viene salvato in EEPROM', () => {
+    test('07 EEPROM: il contatore viene salvato in EEPROM e sopravvive al Reset', () => {
+        // Appena programmata la EEPROM vale 0xFF: il contatore parte da li'.
         const { seen, cpu } = portBSequence('07_eeprom.asm', 6);
-        assert.deepEqual(seen, [0, 1, 2, 3, 4, 5]);
-        assert.ok(cpu.eeprom[0] >= 4, 'valore salvato all\'indirizzo 0: ' + cpu.eeprom[0]);
+        assert.deepEqual(seen, [0x00, 0xFF, 0x00, 0x01, 0x02, 0x03]);
+        // Ci si ferma appena PORTB mostra 3, prima che venga salvato: in EEPROM c'e' 2.
+        assert.equal(cpu.eeprom[0], 0x02);
+        
+        cpu.reset();
+        let shown = null;
+        for (let i = 0; i < 100 && shown === null; i++) {
+            cpu.step();
+            if (cpu.readPortPins('B') !== 0) shown = cpu.readPortPins('B');
+        }
+        assert.equal(shown, 0x02, 'dopo il Reset riparte dal valore salvato');
     });
 
     test('08 tabella: cifre 0-9 sul display a 7 segmenti', () => {

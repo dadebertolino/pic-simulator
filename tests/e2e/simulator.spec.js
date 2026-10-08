@@ -247,6 +247,30 @@ test.describe( 'memoria', () => {
 		await button( page, 'stop' ).click();
 	} );
 
+	test( 'esempio 07: la EEPROM sopravvive al Reset e si cancella riassemblando', async ( { page } ) => {
+		await openSimulator( page );
+		await page.locator( '#examples-select2' ).selectOption( '07_eeprom' );
+		await expect( status( page ) ).toHaveText( 'Caricato: 07_eeprom' );
+		await assemble( page );
+
+		const ee0 = () => page.evaluate( () => window.picSim.cpu.eeprom[ 0 ] );
+		expect( await ee0() ).toBe( 0xFF ); // appena programmata
+
+		await button( page, 'run' ).click();
+		await expect.poll( ee0, { timeout: 5000 } ).toBeLessThan( 0xFF );
+		await button( page, 'stop' ).click();
+		const saved = await ee0();
+
+		await button( page, 'reset' ).click();
+		expect( await ee0() ).toBe( saved );
+		await page.locator( '.picsim__memory-tab[data-type="eeprom"]' ).click();
+		await expect( page.locator( '.picsim__mem-val[data-type="eeprom"][data-addr="0"]' ) )
+			.toHaveText( saved.toString( 16 ).toUpperCase().padStart( 2, '0' ) );
+
+		await assemble( page );
+		expect( await ee0() ).toBe( 0xFF );
+	} );
+
 	test( 'la vista Prog mostra il disassemblato', async ( { page } ) => {
 		await openSimulator( page );
 		await setSource( page, '    MOVLW 0x3C\n    GOTO $' );
