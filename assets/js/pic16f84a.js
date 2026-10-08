@@ -233,14 +233,11 @@ class PIC16F84A {
                     if (addr < 64) {
                         this.eeprom[addr] = this.ram[0x08];
                     }
-                    // Set EEIF dopo completamento (semplificato: istantaneo)
+                    // Set EEIF dopo completamento (semplificato: istantaneo).
+                    // EEIF vive in EECON1, non in INTCON: checkInterrupts()
+                    // lo combina con EEIE. Il bit 4 di INTCON e' INTE.
                     this.ram[0x88] |= 0x10; // EEIF
                     this.ram[0x88] &= ~0x02; // Clear WR
-                    
-                    // Trigger interrupt se abilitato
-                    if (this.ram[0x0B] & 0x40) { // EEIE
-                        this.ram[0x0B] |= 0x10; // Set interrupt flag in INTCON
-                    }
                 }
                 this.eeWriteSequence = [];
             }
