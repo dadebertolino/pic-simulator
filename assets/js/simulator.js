@@ -42,11 +42,22 @@ class Simulator {
         
         if (this.assemblyResult.success) {
             this.cpu.reset();
-            this.cpu.loadProgram(this.assemblyResult.programMemory);
+            this.loadIntoCpu();
             this.stepCount = 0;
         }
         
         return this.assemblyResult;
+    }
+
+    /**
+     * Programma il micro: memoria programma e contenuto iniziale della
+     * EEPROM dichiarato con DE a 0x2100.
+     */
+    loadIntoCpu() {
+        this.cpu.loadProgram(this.assemblyResult.programMemory);
+        (this.assemblyResult.eepromData || []).forEach((value, addr) => {
+            if (value !== undefined && addr < 64) this.cpu.eeprom[addr] = value;
+        });
     }
 
     getSourceMap() {
@@ -204,7 +215,7 @@ class Simulator {
         this.stepCount = 0;
         
         if (this.assemblyResult?.success) {
-            this.cpu.loadProgram(this.assemblyResult.programMemory);
+            this.loadIntoCpu();
         }
         
         if (this.onUpdate) {
