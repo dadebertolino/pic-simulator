@@ -62,9 +62,124 @@ describe('Simulator', () => {
         assert.equal(sim.cpu.PC, 1);
     });
 
+    test('getSimulatedTime: 4 periodi di clock per ciclo', () => {
+        const sim = make();
+        sim.cpu.cycles = 1000000;
+        assert.equal(sim.getSimulatedTime(), 1);
+        sim.setClockFrequency(20000000);
+        assert.equal(sim.getSimulatedTime(), 0.2);
+    });
+
     test('getCurrentInstruction disassembla l\'istruzione al PC', () => {
         const sim = make();
         sim.loadSource('    MOVLW 0x3C');
         assert.equal(sim.getCurrentInstruction().disassembly, 'MOVLW 0x3C');
+    });
+});
+
+describe('Run a tempo', () => {
+    /**
+     * Simulatore con orologio finto: `clock.t` e' l'ora in ms, `clock.auto`
+     * di quanto avanza a ogni lettura (simula il tempo di calcolo).
+     * run() avvia l'intervallo vero, che si ferma subito: i tick si
+     * chiamano a mano.
+     */
+    function running(source) {
+        const sim = make();
+        const clock = { t: 1000, auto: 0 };
+        sim.now = () => { const t = clock.t; clock.t += clock.auto; return t; };
+        sim.loadSource(source);
+        sim.run();
+        clearInterval(sim.runInterval);
+        return { sim, clock };
+    }
+
+    const LOOP = 'LOOP: NOP\n    NOP\n    GOTO LOOP';
+
+    test('tempo reale a 4 MHz: un milione di cicli al secondo', () => {
+        const { sim, clock } = running(LOOP);
+        clock.t += 50;
+        sim.runTick();
+        assert.ok(Math.abs(sim.cpu.cycles - 50000) <= 2, `cicli: ${sim.cpu.cycles}`);
+        assert.equal(sim.lagging, false);
+        sim.stop();
+    });
+
+    test('un tick in ritardo recupera i cicli mancanti', () => {
+        const { sim, clock } = running(LOOP);
+        clock.t += 16;
+        sim.runTick();
+        clock.t += 40; // tick arrivato tardi
+        sim.runTick();
+        assert.ok(Math.abs(sim.cpu.cycles - 56000) <= 2, `cicli: ${sim.cpu.cycles}`);
+        sim.stop();
+    });
+
+    test('velocita\' 1/1000: mille cicli al secondo', () => {
+        const { sim, clock } = running(LOOP);
+        sim.setSpeedFactor(0.001);
+        clock.t += 100;
+        sim.runTick();
+        assert.ok(Math.abs(sim.cpu.cycles - 100) <= 2, `cicli: ${sim.cpu.cycles}`);
+        sim.stop();
+    });
+
+    test('velocita\' massima: si ferma al tetto di tempo del tick', () => {
+        const { sim, clock } = running(LOOP);
+        sim.setSpeedFactor(Infinity);
+        clock.auto = 1; // ogni lettura dell'orologio = 1 ms di calcolo
+        sim.runTick();
+        // l'orologio si legge ogni 1024 istruzioni: tetto di 10 ms = ~10 letture
+        assert.ok(sim.stepCount > 5000 && sim.stepCount < 20000, `istruzioni: ${sim.stepCount}`);
+        sim.stop();
+    });
+
+    test('se la CPU non sta al passo non accumula debito', () => {
+        const { sim, clock } = running(LOOP);
+        clock.t += 1000; // un secondo di ritardo, es. scheda in secondo piano
+        clock.auto = 1;
+        sim.runTick();
+        assert.equal(sim.lagging, true);
+        const after = sim.cpu.cycles;
+        assert.ok(after < 1000000, 'non recupera tutto il secondo in un tick');
+        
+        // Il tick successivo riparte da adesso: niente raffica.
+        clock.auto = 0;
+        clock.t += 16;
+        sim.runTick();
+        // ~16-17 ms di cicli (l'orologio finto avanza anche alla lettura di
+        // syncClock), non il secondo arretrato (~990.000 cicli).
+        assert.ok(sim.cpu.cycles - after <= 20000, `cicli nel tick: ${sim.cpu.cycles - after}`);
+        sim.stop();
+    });
+
+    test('un breakpoint ferma Run a meta\' tick', () => {
+        const { sim, clock } = running(LOOP);
+        sim.toggleBreakpoint(2);
+        let hit = null;
+        sim.onBreakpoint = addr => { hit = addr; };
+        clock.t += 50;
+        sim.runTick();
+        assert.equal(hit, 2);
+        assert.equal(sim.running, false);
+        assert.ok(sim.cpu.cycles < 10);
+    });
+
+    test('esempio 01 in tempo reale: il LED cambia ogni ~0,2 s simulati', () => {
+        const { readExample } = require('./helpers');
+        const { sim, clock } = running(readExample('01_blink_led.asm'));
+        const toggles = [];
+        let last = sim.cpu.readPortPins('B') & 1;
+        for (let i = 0; i < 100 && toggles.length < 3; i++) {
+            clock.t += 16;
+            sim.runTick();
+            const led = sim.cpu.readPortPins('B') & 1;
+            if (led !== last) toggles.push(sim.getSimulatedTime());
+            last = led;
+        }
+        sim.stop();
+        assert.equal(toggles.length, 3);
+        const period = toggles[2] - toggles[1];
+        assert.ok(period > 0.1 && period < 0.4, `periodo: ${period} s`);
     });
 });

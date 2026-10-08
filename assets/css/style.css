@@ -145,6 +145,9 @@
 /* === MINI TOOLBAR === */
 .picsim__mini-toolbar {
     display: flex;
+    /* Su temi stretti e sul telefono i comandi vanno a capo invece di
+       essere tagliati fuori dal contenitore. */
+    flex-wrap: wrap;
     align-items: center;
     gap: 4px;
     padding: 6px 12px;
@@ -178,6 +181,7 @@
 .picsim__speed-label { font-size: 12px; }
 .picsim__speed-slider { width: 60px; accent-color: var(--picsim-accent); cursor: pointer; }
 .picsim__speed-val { font-size: 10px; color: var(--picsim-accent); min-width: 42px; }
+.picsim__sim-time--lagging { color: var(--picsim-warning); }
 
 /* === MAIN === */
 .picsim__main { display: flex; flex: 1; overflow: hidden; }

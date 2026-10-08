@@ -43,7 +43,9 @@ Tutto avviene lato client: nessun dato lascia il browser, nessuna chiamata a ser
 - Disassemblatore, usato nella vista Programma
 
 ### Debugger
-- Run, Step, Step Over, Animate e Reset, con velocità regolabile
+- Run, Step, Step Over, Animate e Reset
+- Run in tempo reale come il chip a 4 MHz (un ciclo istruzione al µs), oppure rallentato (1/10, 1/100, 1/1000) o alla massima velocità del browser; il tempo simulato è mostrato accanto ai cicli
+- Animate da 1 a 100 istruzioni al secondo, per seguire il programma riga per riga
 - Breakpoint cliccabili sui numeri di riga
 - Pannelli: Registri, bit di STATUS, Stack, Memoria (RAM/Programma/EEPROM), TMR0
 - Celle di RAM ed EEPROM editabili a mano durante l'esecuzione

@@ -56,9 +56,19 @@ defined('ABSPATH') || exit;
                 <option value="10_state_machine">10 - Macchina a Stati</option>
             </select>
             <span class="picsim__toolbar-sep"></span>
+            <span class="picsim__speed-group" title="Velocità di Run rispetto al chip reale a 4 MHz">
+                <span>▶</span>
+                <select id="run-speed" class="picsim__select">
+                    <option value="1" selected>Tempo reale</option>
+                    <option value="0.1">1/10</option>
+                    <option value="0.01">1/100</option>
+                    <option value="0.001">1/1000</option>
+                    <option value="max">Massima</option>
+                </select>
+            </span>
             <span class="picsim__speed-group">
-                <span>🚀</span>
-                <input type="range" id="speed-slider" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità">
+                <span>⏯</span>
+                <input type="range" id="speed-slider" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità di Animate (istruzioni al secondo)">
                 <span id="speed-value" class="picsim__speed-val">10 Hz</span>
             </span>
         </div>
@@ -107,9 +117,16 @@ defined('ABSPATH') || exit;
             <option value="10_state_machine">10</option>
         </select>
         <span class="picsim__mini-sep"></span>
+        <select id="run-speed2" class="picsim__mini-select" title="Velocità di Run rispetto al chip reale a 4 MHz">
+            <option value="1" selected>▶ Reale</option>
+            <option value="0.1">▶ 1/10</option>
+            <option value="0.01">▶ 1/100</option>
+            <option value="0.001">▶ 1/1000</option>
+            <option value="max">▶ Max</option>
+        </select>
         <span class="picsim__speed-group">
-            <span class="picsim__speed-label">🚀</span>
-            <input type="range" id="speed-slider2" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità simulazione">
+            <span class="picsim__speed-label">⏯</span>
+            <input type="range" id="speed-slider2" class="picsim__speed-slider" min="1" max="5" value="3" title="Velocità di Animate (istruzioni al secondo)">
             <span id="speed-value2" class="picsim__speed-val">10 Hz</span>
         </span>
     </div>
@@ -244,6 +261,8 @@ defined('ABSPATH') || exit;
             <span id="status-text">Ready</span>
             <span class="picsim__footer-sep">|</span>
             <span>Cycles: <strong id="cycles-count">0</strong></span>
+            <span class="picsim__footer-sep">|</span>
+            <span title="Tempo trascorso sul chip simulato a 4 MHz">Tempo: <strong id="sim-time">0 µs</strong></span>
             <span class="picsim__footer-sep">|</span>
             <span id="current-instruction">-</span>
         </div>
