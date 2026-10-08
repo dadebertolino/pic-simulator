@@ -11,7 +11,7 @@
     },
     "ram": {
       "total": 256,
-      "banks": 2
+      "banks": 4
     },
     "eeprom": {
       "size": 256,
@@ -272,7 +272,7 @@
       "type": "comparator",
       "modules": 2,
       "controlReg": "0x1F",
-      "vrefReg": "0x9D",
+      "vrefReg": "0x9F",
       "inputs": [
         "RA0/AN0",
         "RA1/AN1",

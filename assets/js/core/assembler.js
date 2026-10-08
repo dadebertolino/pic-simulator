@@ -96,8 +96,10 @@ class PIC16Assembler {
      * Carica simboli SFR per un device specifico dal JSON.
      * Può essere chiamato dal manager al cambio device o dalla direttiva LIST P=xxx.
      * 
-     * Strategia: se il JSON ha la sezione 'sfr', la usa.
-     * Altrimenti, ricostruisce gli SFR dalle porte e periferiche definite.
+     * Strategia: se il JSON ha la sezione 'sfr', i registri vengono da li'.
+     * Altrimenti si ricostruiscono dalle porte e periferiche definite e
+     * dagli indirizzi di famiglia (DeviceLoader.memoryLayout). I nomi dei
+     * bit delle periferiche si aggiungono in entrambi i casi.
      * I registri base rimangono sempre — quelli dal device si aggiungono.
      * 
      * @param {string} deviceId
@@ -117,6 +119,21 @@ class PIC16Assembler {
         
         // Reset ai base, poi aggiungi device-specific
         this.initRegisters();
+        this._fromSfr = !!deviceData.sfr;
+
+        // EEPROM e PIR/PIE: indirizzi di famiglia (la sezione 'sfr', se c'e', li conferma)
+        if (typeof DeviceLoader !== 'undefined' && DeviceLoader.memoryLayout) {
+            var layout = DeviceLoader.memoryLayout(deviceId, deviceData);
+            var ee = layout.eeprom;
+            this.registers['EEDATA'] = ee.data; this.registers['EEADR'] = ee.addr;
+            this.registers['EECON1'] = ee.con1; this.registers['EECON2'] = ee.con2;
+            // EEIF/EEIE: EECON1.4/INTCON.6 sul 16F84A, PIR1.7/PIE1.7 sul 628A, PIR2.4/PIE2.4 sull'877A
+            this.registers['EEIF'] = ee.flag.bit; this.registers['EEIE'] = ee.enable.bit;
+            for (var p = 0; p < layout.pir.length; p++) {
+                this.registers['PIR' + (p + 1)] = layout.pir[p].flag;
+                this.registers['PIE' + (p + 1)] = layout.pir[p].enable;
+            }
+        }
 
         // 1. Se il JSON ha sezione 'sfr', usala direttamente
         if (deviceData.sfr) {
@@ -126,6 +143,8 @@ class PIC16Assembler {
                 for (var addr in regs) {
                     if (!regs.hasOwnProperty(addr)) continue;
                     var info = regs[addr];
+                    // Le copie nei banchi alti (PORTB a 0x106...) non ridefiniscono il simbolo
+                    if (info.mirror) continue;
                     var numAddr = parseInt(addr, 16);
                     this.registers[info.name] = numAddr;
                     // Bit names se presenti
@@ -138,11 +157,10 @@ class PIC16Assembler {
                     }
                 }
             }
-            return;
         }
 
         // 2. Ricostruisci SFR dalle porte
-        if (deviceData.ports) {
+        if (deviceData.ports && !deviceData.sfr) {
             for (var portName in deviceData.ports) {
                 if (!deviceData.ports.hasOwnProperty(portName)) continue;
                 var port = deviceData.ports[portName];
@@ -220,12 +238,11 @@ class PIC16Assembler {
             this._addPeriphRegs({
                 'CMCON': pMap.COMPARATOR.controlReg, 'VRCON': pMap.COMPARATOR.vrefReg
             });
+            this.registers['CMIF'] = 6; this.registers['CMIE'] = 6;
         }
         
-        // PIR/PIE (presenti se c'è almeno una periferica avanzata)
+        // Bit di PIR/PIE (presenti se c'è almeno una periferica avanzata)
         if (pMap.TMR1 || pMap.USART || pMap.ADC || pMap.MSSP || pMap.CCP1) {
-            this.registers['PIR1'] = 0x0C;
-            this.registers['PIE1'] = 0x8C;
             // Bit names PIR1
             this.registers['TMR1IF'] = 0; this.registers['TMR2IF'] = 1;
             this.registers['CCP1IF'] = 2; this.registers['SSPIF'] = 3;
@@ -237,15 +254,15 @@ class PIC16Assembler {
             this.registers['ADIE'] = 6;
         }
         if (pMap.CCP2) {
-            this.registers['PIR2'] = 0x0D;
-            this.registers['PIE2'] = 0x8D;
             this.registers['CCP2IF'] = 0;
             this.registers['CCP2IE'] = 0;
         }
     }
 
+    /** Indirizzi dei registri dalle periferiche, se la sezione 'sfr' non li ha gia' dati. */
     _addPeriphRegs(map) {
         for (var name in map) {
+            if (this._fromSfr && this.registers[name] !== undefined) continue;
             if (map.hasOwnProperty(name) && map[name]) {
                 var val = typeof map[name] === 'string' ? parseInt(map[name], 16) : map[name];
                 if (!isNaN(val)) this.registers[name] = val;
@@ -1113,7 +1130,9 @@ class PIC16Assembler {
             const count = Math.min(wordsPerRecord, lastUsed - i + 1);
             
             for (let j = 0; j < count; j++) {
-                const word = this.programMemory[i + j] || 0x3FFF;
+                // Le celle mai scritte valgono 0x3FFF; un NOP (0x0000) resta 0x0000.
+                const stored = this.programMemory[i + j];
+                const word = stored === undefined || stored === null ? 0x3FFF : stored;
                 chunk.push(word & 0xFF);          // low byte first (little-endian)
                 chunk.push((word >> 8) & 0x3F);   // high byte (14-bit max)
             }

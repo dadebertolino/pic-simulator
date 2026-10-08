@@ -10,14 +10,20 @@ class Simulator {
         
         // Stato simulazione
         this.running = false;
-        this.speed = 1000; // Hz simulati
-        this.realTimeMode = false;
         this.clockFrequency = 4000000; // 4MHz default
+        // Velocita' di Run come frazione del tempo reale: 1 = un ciclo
+        // istruzione ogni 4 periodi di clock, come sul chip; Infinity = il
+        // piu' veloce possibile.
+        this.speedFactor = 1;
         
         // Timer per esecuzione
         this.runInterval = null;
         this.stepCount = 0;
         this.startTime = 0;
+        this.tickMs = 16;          // ~60 aggiornamenti al secondo
+        this.tickBudgetMs = 10;    // tempo di calcolo massimo per tick
+        this.now = () => performance.now(); // sostituibile nei test
+        this.lagging = false;      // la CPU non riesce a stare al passo
         
         // Source code
         this.sourceCode = '';
@@ -32,6 +38,10 @@ class Simulator {
         this.onStop = null;
         this.onError = null;
         this.onBreakpoint = null;
+        this.onStepOverDone = null;
+        
+        this.stepOverTarget = null;   // { pc, sp } durante uno Step Over
+        this.stepOverSpeed = 1;
     }
 
     // === ASSEMBLY ===
@@ -42,11 +52,29 @@ class Simulator {
         
         if (this.assemblyResult.success) {
             this.cpu.reset();
-            this.cpu.loadProgram(this.assemblyResult.programMemory);
+            this.loadIntoCpu();
             this.stepCount = 0;
         }
         
         return this.assemblyResult;
+    }
+
+    /**
+     * Programma il micro, come un programmatore: memoria programma, EEPROM
+     * cancellata (0xFF) e poi i dati dichiarati con DE a 0x2100.
+     */
+    loadIntoCpu() {
+        this.cpu.loadProgram(this.assemblyResult.programMemory);
+        this.cpu.eraseEeprom();
+        const eep = this.cpu.getPeripheral('EEPROM');
+        (this.assemblyResult.eepromData || []).forEach((value, addr) => {
+            if (value !== undefined && eep) eep.writeByte(addr, value);
+        });
+    }
+
+    /** Indice di una parola della memoria programma (dimensione del device). */
+    programIndex(pc) {
+        return pc & (this.cpu.config.programSize - 1);
     }
 
     getSourceMap() {
@@ -98,30 +126,36 @@ class Simulator {
         }
     }
 
+    /**
+     * Step Over: su una CALL esegue l'intera subroutine e si ferma
+     * all'istruzione dopo la CALL, allo stesso livello di stack (cosi' una
+     * chiamata ricorsiva non lo ferma prima). Gira nel ciclo di Run alla
+     * massima velocita', senza limite di cicli: anche un ritardo da
+     * centinaia di migliaia di cicli finisce in pochi millisecondi senza
+     * bloccare la pagina. I breakpoint dentro la subroutine lo fermano.
+     *
+     * Restituisce 'call' se e' partita l'esecuzione (fine annunciata da
+     * onStepOverDone), 'step' se l'istruzione non era una CALL, false se
+     * non c'e' un programma.
+     */
     stepOver() {
-        if (!this.assemblyResult?.success) return false;
+        if (!this.assemblyResult?.success || this.running) return false;
         
-        const currentOpcode = this.cpu.programMemory[this.cpu.PC & 0x3FF];
-        
-        // Check if CALL instruction
-        if ((currentOpcode >> 11) === 0x04) {
-            // Set temporary breakpoint after CALL
-            const returnAddr = (this.cpu.PC + 1) & 0x1FFF;
-            const hadBreakpoint = this.cpu.breakpoints.has(returnAddr);
-            
-            if (!hadBreakpoint) {
-                this.cpu.setBreakpoint(returnAddr);
-            }
-            
-            this.run();
-            
-            // Will stop at breakpoint, then we remove it if it wasn't there before
-            if (!hadBreakpoint) {
-                // Clean up in onBreakpoint or after stop
-            }
-        } else {
+        const opcode = this.cpu.programMemory[this.programIndex(this.cpu.PC)];
+        if ((opcode >> 11) !== 0x04) {
             this.step();
+            return 'step';
         }
+        
+        this.stepOverTarget = { pc: (this.cpu.PC + 1) & 0x1FFF, sp: this.cpu.stackPointer };
+        this.stepOverSpeed = this.speedFactor;
+        this.speedFactor = Infinity;
+        
+        this.saveState();
+        this.cpu.step(); // la CALL
+        this.stepCount++;
+        this.run();
+        return 'call';
     }
 
     stepOut() {
@@ -129,44 +163,12 @@ class Simulator {
         
         // Run until RETURN or RETFIE
         const checkReturn = () => {
-            const opcode = this.cpu.programMemory[this.cpu.PC & 0x3FF];
-            return opcode === 0x0008 || opcode === 0x0009;
+            const opcode = this.cpu.programMemory[this.programIndex(this.cpu.PC)];
+            return opcode === 0x0008 || opcode === 0x0009 || (opcode >> 10) === 0x0D;
         };
         
         this.runUntil(checkReturn, 10000);
         this.step(); // Execute the RETURN
-    }
-
-    run() {
-        if (this.running) return;
-        if (!this.assemblyResult?.success) return;
-        
-        this.running = true;
-        this.startTime = performance.now();
-        
-        const stepsPerTick = Math.max(1, Math.floor(this.speed / 60));
-        
-        this.runInterval = setInterval(() => {
-            for (let i = 0; i < stepsPerTick; i++) {
-                if (!this.running) break;
-                
-                this.cpu.step();
-                this.stepCount++;
-                
-                // Check breakpoint
-                if (this.cpu.breakpoints.has(this.cpu.PC)) {
-                    this.stop();
-                    if (this.onBreakpoint) {
-                        this.onBreakpoint(this.cpu.PC);
-                    }
-                    break;
-                }
-            }
-            
-            if (this.onUpdate) {
-                this.onUpdate();
-            }
-        }, 16); // ~60fps update
     }
 
     runUntil(condition, maxSteps = 100000) {
@@ -186,8 +188,92 @@ class Simulator {
         }
     }
 
+    run() {
+        if (this.running) return;
+        if (!this.assemblyResult?.success) return;
+        
+        this.running = true;
+        this.startTime = this.now();
+        this.syncClock();
+        
+        this.runInterval = setInterval(() => this.runTick(), this.tickMs);
+    }
+
+    /** Ciclo istruzione al secondo da simulare (Infinity = massima velocita'). */
+    cyclesPerSecond() {
+        return this.clockFrequency / 4 * this.speedFactor;
+    }
+
+    /** Riallinea l'orologio reale a quello simulato, da qui in avanti. */
+    syncClock() {
+        this.clockOriginTime = this.now();
+        this.clockOriginCycles = this.cpu.cycles;
+        this.lagging = false;
+    }
+
+    /**
+     * Esegue i cicli che la CPU simulata avrebbe eseguito nel tempo reale
+     * trascorso. Il numero di istruzioni per tick non e' fisso: dipende
+     * dalla velocita' scelta e dal tempo davvero passato, cosi' un tick in
+     * ritardo recupera. Ogni tick ha comunque un tetto di tempo di calcolo,
+     * perche' la pagina resti reattiva.
+     */
+    runTick() {
+        if (!this.running) return;
+        
+        const start = this.now();
+        const rate = this.cyclesPerSecond();
+        const target = isFinite(rate)
+            ? this.clockOriginCycles + (start - this.clockOriginTime) / 1000 * rate
+            : Infinity;
+        const deadline = start + this.tickBudgetMs;
+        
+        let steps = 0;
+        while (this.running && this.cpu.cycles < target) {
+            // Leggere l'orologio costa: lo si fa ogni 1024 istruzioni.
+            if ((++steps & 0x3FF) === 0 && this.now() > deadline) break;
+            
+            this.cpu.step();
+            this.stepCount++;
+            
+            const over = this.stepOverTarget;
+            if (over && this.cpu.PC === over.pc && this.cpu.stackPointer === over.sp) {
+                this.stop();
+                if (this.onStepOverDone) {
+                    this.onStepOverDone();
+                }
+                break;
+            }
+            
+            if (this.cpu.breakpoints.has(this.cpu.PC)) {
+                this.stop();
+                if (this.onBreakpoint) {
+                    this.onBreakpoint(this.cpu.PC);
+                }
+                break;
+            }
+        }
+        
+        // Se la CPU resta indietro di oltre 100 ms non si accumula debito:
+        // si riparte da adesso, altrimenti a ogni pausa (scheda in secondo
+        // piano, breakpoint di un altro tick) seguirebbe una raffica.
+        if (this.running && isFinite(rate) && target - this.cpu.cycles > rate * 0.1) {
+            this.syncClock();
+            this.lagging = true;
+        }
+        
+        if (this.onUpdate) {
+            this.onUpdate();
+        }
+    }
+
     stop() {
         this.running = false;
+        // Uno Step Over interrotto (Stop, breakpoint) restituisce la velocita' scelta.
+        if (this.stepOverTarget) {
+            this.speedFactor = this.stepOverSpeed;
+            this.stepOverTarget = null;
+        }
         if (this.runInterval) {
             clearInterval(this.runInterval);
             this.runInterval = null;
@@ -200,18 +286,9 @@ class Simulator {
 
     reset() {
         this.stop();
-        
-        // Azzera program memory prima del reset CPU
-        this.cpu.programMemory.fill(0);
-        
-        // Reset CPU (preserva callbacks, breakpoints, EEPROM)
+        // Reset del micro: memoria programma ed EEPROM restano come sono.
         this.cpu.reset();
         this.stepCount = 0;
-        
-        // Ricarica programma se disponibile
-        if (this.assemblyResult?.success) {
-            this.cpu.loadProgram(this.assemblyResult.programMemory);
-        }
         
         if (this.onUpdate) {
             this.onUpdate();
@@ -312,7 +389,7 @@ class Simulator {
     
     getCurrentInstruction() {
         const addr = this.cpu.PC;
-        const word = this.cpu.programMemory[addr & 0x3FF];
+        const word = this.cpu.programMemory[this.programIndex(addr)];
         return {
             address: addr,
             opcode: word,
@@ -322,8 +399,8 @@ class Simulator {
     }
 
     getExecutionStats() {
-        const elapsed = (performance.now() - this.startTime) / 1000;
-        const simTime = this.cpu.cycles * 4 / this.clockFrequency;
+        const elapsed = (this.now() - this.startTime) / 1000;
+        const simTime = this.getSimulatedTime();
         
         return {
             cycles: this.cpu.cycles,
@@ -335,18 +412,29 @@ class Simulator {
         };
     }
 
+    /**
+     * Compatibilita' con il cursore della 3.1: istruzioni al secondo.
+     * Equivale a setSpeedFactor(hz / cicli al secondo del clock).
+     */
     setSpeed(hz) {
-        this.speed = hz;
-        
-        // Restart if running
-        if (this.running) {
-            this.stop();
-            this.run();
-        }
+        this.setSpeedFactor(hz / (this.clockFrequency / 4));
+    }
+
+    /** Frazione del tempo reale (1, 0.1, ...) o Infinity per la massima. */
+    setSpeedFactor(factor) {
+        this.speedFactor = factor;
+        // Cambiando ritmo in corsa si riparte da adesso, senza recuperi.
+        this.syncClock();
     }
 
     setClockFrequency(hz) {
         this.clockFrequency = hz;
+        this.syncClock();
+    }
+
+    /** Tempo trascorso sul chip simulato, in secondi. */
+    getSimulatedTime() {
+        return this.cpu.cycles * 4 / this.clockFrequency;
     }
 
     // === EXPORT ===

@@ -5441,9 +5441,9 @@ KEY_FOUND:\n\
     ; KEY_CODE = ROW * 4 + column number\n\
     BCF STATUS, C\n\
     RLF ROW, W             ; ROW * 2\n\
-    BCF STATUS, C\n\
-    RLF WREG, W            ; ROW * 4 (through W)\n\
     MOVWF KEY_CODE\n\
+    BCF STATUS, C\n\
+    RLF KEY_CODE, F        ; ROW * 4\n\
     ; Find which column\n\
     BTFSC COL_VAL, 0\n\
     GOTO COL0\n\

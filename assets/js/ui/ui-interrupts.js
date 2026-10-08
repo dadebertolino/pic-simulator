@@ -20,12 +20,16 @@ class UIInterrupts {
         this._prevFlags = 0;
 
         var peripherals = this.cpu.peripherals.list();
+        // Senza PIR (16F84A) INTCON.6 e' EEIE, non PEIE
+        var hasPir = (this.cpu.config.pir || []).length > 0;
+        var eep = this.cpu.getPeripheral('EEPROM');
+        var ee = eep ? eep.regs : null;
 
         // Definizione sorgenti interrupt
         // { name, flagAddr, flagBit, enAddr, enBit, peripheral (opzionale) }
         var sources = [
             { name: 'GIE',  flagAddr: 0x0B, flagBit: 7, enAddr: -1, enBit: -1, always: true, isGlobal: true },
-            { name: 'PEIE', flagAddr: 0x0B, flagBit: 6, enAddr: -1, enBit: -1, always: true, isGlobal: true },
+            { name: 'PEIE', flagAddr: 0x0B, flagBit: 6, enAddr: -1, enBit: -1, always: hasPir, isGlobal: true },
             { name: 'T0IF', flagAddr: 0x0B, flagBit: 2, enAddr: 0x0B, enBit: 5, always: true },
             { name: 'INTF', flagAddr: 0x0B, flagBit: 1, enAddr: 0x0B, enBit: 4, always: true },
             { name: 'RBIF', flagAddr: 0x0B, flagBit: 0, enAddr: 0x0B, enBit: 3, always: true },
@@ -37,8 +41,8 @@ class UIInterrupts {
             { name: 'RCIF',   flagAddr: 0x0C, flagBit: 5, enAddr: 0x8C, enBit: 5, peripheral: 'USART' },
             { name: 'ADIF',   flagAddr: 0x0C, flagBit: 6, enAddr: 0x8C, enBit: 6, peripheral: 'ADC' },
             { name: 'CCP2IF', flagAddr: 0x0D, flagBit: 0, enAddr: 0x8D, enBit: 0, peripheral: 'CCP2' },
-            { name: 'EEIF',   flagAddr: 0x0C, flagBit: 4, enAddr: 0x8C, enBit: 4, peripheral: 'EEPROM',
-              flagAddr2: 0x0B, flagBit2: 4, note: 'via EEIE in INTCON' }
+            { name: 'EEIF', flagAddr: ee ? ee.flag.addr : 0x88, flagBit: ee ? ee.flag.bit : 4,
+              enAddr: ee ? ee.enable.addr : 0x0B, enBit: ee ? ee.enable.bit : 6, peripheral: 'EEPROM' }
         ];
 
         // Filtra: mostra solo sorgenti il cui peripheral esiste (o always)

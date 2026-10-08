@@ -7,7 +7,9 @@
  *   0x81 - OPTION_REG (bank 1) - bit PS2:PS0, PSA, T0SE, T0CS
  * 
  * Funzionamento:
- *   - Sorgente clock interna (T0CS=0): incrementa ad ogni ciclo CPU
+ *   - Sorgente clock interna (T0CS=0): un passo per ciclo istruzione
+ *     (due per GOTO, CALL e skip); fermo durante SLEEP
+ *   - Dopo una scrittura di TMR0 il conteggio resta fermo per 2 cicli
  *   - Sorgente clock esterna (T0CS=1): incrementa via T0CKI (gestito da GPIO)
  *   - Prescaler (PSA=0): divide il clock per 2/4/8/.../256
  *   - Overflow 0xFF->0x00: setta T0IF (INTCON bit 2)
@@ -22,6 +24,7 @@ class PIC16TMR0 extends PIC16Peripheral {
     constructor(cpu) {
         super('TMR0', cpu);
         this.prescalerCount = 0;
+        this.inhibit = 0; // cicli in cui TMR0 resta fermo dopo una scrittura
     }
 
     getRegisters() {
@@ -31,6 +34,7 @@ class PIC16TMR0 extends PIC16Peripheral {
 
     reset() {
         this.prescalerCount = 0;
+        this.inhibit = 0;
         this.cpu.ram[0x01] = 0x00;      // TMR0 = 0
         this.cpu.ram[0x81] = 0xFF;      // OPTION_REG default
     }
@@ -50,9 +54,11 @@ class PIC16TMR0 extends PIC16Peripheral {
 
     write(addr, value) {
         if (addr === 0x01) {
-            // Scrivere TMR0 resetta il prescaler
+            // Scrivere TMR0 azzera il prescaler e blocca il conteggio
+            // per i due cicli successivi
             this.cpu.ram[0x01] = value & 0xFF;
             this.prescalerCount = 0;
+            this.inhibit = 2;
             this.notifyRegisterChange('TMR0', value);
         } else if (addr === 0x81) {
             // OPTION_REG
@@ -71,8 +77,14 @@ class PIC16TMR0 extends PIC16Peripheral {
         
         // Solo sorgente interna (T0CS=0) incrementa nel tick
         // La sorgente esterna (T0CS=1) e' gestita via externalClock()
-        if (t0cs === 0) {
-            this._increment();
+        if (t0cs !== 0) return;
+
+        for (var i = 0; i < cycles; i++) {
+            if (this.inhibit > 0) {
+                this.inhibit--;
+            } else {
+                this._increment();
+            }
         }
     }
 
@@ -113,10 +125,11 @@ class PIC16TMR0 extends PIC16Peripheral {
     }
 
     _doIncrement() {
-        this.cpu.ram[0x01]++;
-        if (this.cpu.ram[0x01] > 255) {
-            this.cpu.ram[0x01] = 0;
-            // Set T0IF (INTCON bit 2)
+        // ram e' una Uint8Array: 0xFF + 1 avvolge gia' a 0x00, quindi
+        // l'overflow si riconosce dal valore risultante, non da un > 255.
+        this.cpu.ram[0x01] = (this.cpu.ram[0x01] + 1) & 0xFF;
+        if (this.cpu.ram[0x01] === 0) {
+            // Overflow FF -> 00: set T0IF (INTCON bit 2)
             this.cpu.ram[0x0B] |= 0x04;
         }
         this.notifyRegisterChange('TMR0', this.cpu.ram[0x01]);

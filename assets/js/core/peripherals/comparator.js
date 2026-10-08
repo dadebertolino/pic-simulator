@@ -36,6 +36,7 @@ class PIC16Comparator extends PIC16Peripheral {
     constructor(cpu, config) {
         super('COMPARATOR', cpu);
         config = config || {};
+        this.runsInSleep = true; // circuito analogico: funziona anche in SLEEP
 
         this.controlReg = parseInt(config.controlReg, 16) || 0x1F;
         this.vrefReg = parseInt(config.vrefReg, 16) || 0x9D;

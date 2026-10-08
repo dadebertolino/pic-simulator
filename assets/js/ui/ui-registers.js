@@ -16,6 +16,17 @@ class UIRegisters {
      * I gruppi vengono mostrati solo se i registri corrispondenti esistono nel device.
      */
     _getRegisterGroups() {
+        // EEPROM e PIR/PIE cambiano indirizzo da un device all'altro:
+        // 0x08/0x88 sull'877A sono PORTD/TRISD.
+        var eep = this.cpu.getPeripheral('EEPROM');
+        var ee = eep ? eep.regs : { data: 0x08, addr: 0x09, con1: 0x88 };
+        var pirRegs = [];
+        (this.cpu.config.pir || []).forEach(function (pair, i) {
+            var n = i + 1;
+            pirRegs.push({ name: 'PIR' + n, addr: pair.flag, digits: 2, tip: 'Peripheral interrupt flags ' + n });
+            pirRegs.push({ name: 'PIE' + n, addr: pair.enable, digits: 2, tip: 'Peripheral interrupt enable ' + n });
+        });
+
         return [
             {
                 id: 'core', label: 'CPU Core', always: true,
@@ -107,19 +118,14 @@ class UIRegisters {
             {
                 id: 'eeprom', label: 'EEPROM', peripheral: 'EEPROM',
                 regs: [
-                    { name: 'EEDATA', addr: 0x08, digits: 2, tip: 'EEPROM data' },
-                    { name: 'EEADR', addr: 0x09, digits: 2, tip: 'EEPROM address' },
-                    { name: 'EECON1', addr: 0x88, digits: 2, tip: 'EEPROM control' }
+                    { name: 'EEDATA', addr: ee.data, digits: 2, tip: 'EEPROM data' },
+                    { name: 'EEADR', addr: ee.addr, digits: 2, tip: 'EEPROM address' },
+                    { name: 'EECON1', addr: ee.con1, digits: 2, tip: 'EEPROM control' }
                 ]
             },
             {
                 id: 'irq', label: 'Interrupts', peripheralAny: ['TMR1','USART','ADC','MSSP','CCP1'],
-                regs: [
-                    { name: 'PIR1', addr: 0x0C, digits: 2, tip: 'Peripheral interrupt flags 1' },
-                    { name: 'PIE1', addr: 0x8C, digits: 2, tip: 'Peripheral interrupt enable 1' },
-                    { name: 'PIR2', addr: 0x0D, digits: 2, tip: 'Peripheral interrupt flags 2' },
-                    { name: 'PIE2', addr: 0x8D, digits: 2, tip: 'Peripheral interrupt enable 2' }
-                ]
+                regs: pirRegs
             },
             {
                 id: 'comparator', label: 'Comparator', peripheral: 'COMPARATOR',

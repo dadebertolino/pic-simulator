@@ -196,22 +196,22 @@ class PIC16GPIO extends PIC16Peripheral {
             (!prevBit && value) :   // rising edge
             (prevBit && !value);    // falling edge
         
-        if (triggered && (this.cpu.ram[0x0B] & 0x10)) { // INTE enabled
+        // Come sul chip, il flag si alza anche con INTE spento: INTE decide
+        // solo se il flag genera l'interrupt (PIC16Core.checkInterrupts).
+        if (triggered) {
             this.cpu.ram[0x0B] |= 0x02; // Set INTF
         }
     }
 
     _handleIOC() {
-        var oldIOC = 0, newIOC = 0;
+        // Contano solo i pin configurati come ingresso: le uscite non
+        // generano RBIF. Anche RBIF si alza indipendentemente da RBIE.
+        var tris = this.cpu.ram[this.trisAddr];
+        var changed = (this.prevExternalValue ^ this.externalValue) & tris;
         for (var i = 0; i < this.iocPins.length; i++) {
-            var pin = this.iocPins[i];
-            oldIOC |= ((this.prevExternalValue >> pin) & 0x01) << pin;
-            newIOC |= ((this.externalValue >> pin) & 0x01) << pin;
-        }
-        
-        if (oldIOC !== newIOC) {
-            if (this.cpu.ram[0x0B] & 0x08) { // RBIE enabled
+            if (changed & (1 << this.iocPins[i])) {
                 this.cpu.ram[0x0B] |= 0x01; // Set RBIF
+                return;
             }
         }
     }

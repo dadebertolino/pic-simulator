@@ -11,7 +11,7 @@
     },
     "ram": {
       "total": 256,
-      "banks": 2
+      "banks": 4
     },
     "eeprom": {
       "size": 256,

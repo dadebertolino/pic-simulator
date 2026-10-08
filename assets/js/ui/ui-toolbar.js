@@ -46,6 +46,8 @@ class UIToolbar {
                 var el = document.getElementById('speed-value');
                 if (el) el.textContent = self.formatSpeed(speed);
             });
+            // Il motore parte in tempo reale: allinealo al valore mostrato.
+            this.simulator.setSpeed(Math.pow(10, speedSlider.value));
         }
 
         document.addEventListener('keydown', function(e) { self.handleKeyboard(e); });

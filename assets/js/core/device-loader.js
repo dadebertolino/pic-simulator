@@ -551,6 +551,69 @@ class DeviceLoader {
     }
 }
 
+/**
+ * Indirizzi che dipendono dalla famiglia del device e che le schede JSON
+ * non riportano tutte: registri della EEPROM dati, dove stanno il flag e
+ * l'abilitazione del suo interrupt, registri PIR/PIE, specchi della RAM.
+ * Valori dai datasheet Microchip; usati da PIC16Factory e dall'assemblatore.
+ *
+ * @param {string} deviceId - Es. 'PIC16F84A'
+ * @param {object} [spec] - Scheda JSON del device
+ * @returns {{eeprom: object, pir: Array<{flag: number, enable: number}>, gprMirror: object|null, common: boolean}}
+ */
+DeviceLoader.memoryLayout = function (deviceId, spec) {
+    var id = String(deviceId || '').toUpperCase().replace(/^PIC/, '');
+    var banks = (spec && spec.memory && spec.memory.ram && spec.memory.ram.banks) || 2;
+    var layout;
+
+    if (/^16F8[34]A?$/.test(id)) {
+        // 16F83/84/84A: niente PIR/PIE; EEIF in EECON1, EEIE e' INTCON.6.
+        // I GPR del banco 1 sono lo specchio di quelli del banco 0.
+        layout = {
+            eeprom: { data: 0x08, addr: 0x09, con1: 0x88, con2: 0x89, flag: { addr: 0x88, bit: 4 }, enable: { addr: 0x0B, bit: 6 }, con1Mask: 0x1F },
+            pir: [],
+            gprMirror: { start: 0x0C, end: id === '16F83' ? 0x2F : 0x4F },
+            common: false
+        };
+    } else if (/^16F6[24][78]A$/.test(id)) {
+        // 16F627A/628A/648A: solo PIR1, EEIF = PIR1.7
+        layout = {
+            eeprom: { data: 0x9A, addr: 0x9B, con1: 0x9C, con2: 0x9D, flag: { addr: 0x0C, bit: 7 }, enable: { addr: 0x8C, bit: 7 }, con1Mask: 0x0F },
+            pir: [{ flag: 0x0C, enable: 0x8C }],
+            gprMirror: null,
+            common: true
+        };
+    } else if (id === '16F1847') {
+        // Enhanced mid-range: registri spostati (EEDATL/EEADRL/EECON1/EECON2)
+        layout = {
+            eeprom: { data: 0x193, addr: 0x191, con1: 0x195, con2: 0x196, flag: { addr: 0x12, bit: 4 }, enable: { addr: 0x92, bit: 4 }, con1Mask: 0xFF },
+            pir: [{ flag: 0x11, enable: 0x91 }, { flag: 0x12, enable: 0x92 }],
+            gprMirror: null,
+            common: true
+        };
+    } else {
+        // 16F818/819, 870-877A, 690, 882-887: EEIF = PIR2.4
+        layout = {
+            eeprom: { data: 0x10C, addr: 0x10D, con1: 0x18C, con2: 0x18D, flag: { addr: 0x0D, bit: 4 }, enable: { addr: 0x8D, bit: 4 }, con1Mask: 0x8F },
+            pir: [{ flag: 0x0C, enable: 0x8C }, { flag: 0x0D, enable: 0x8D }],
+            gprMirror: null,
+            common: banks >= 4
+        };
+    }
+
+    // La scheda, quando li dichiara, ha l'ultima parola sui registri PIR/PIE.
+    var regs = spec && spec.interrupts && spec.interrupts.registers;
+    if (regs && regs.PIR1) {
+        layout.pir = [];
+        ['1', '2'].forEach(function (n) {
+            if (regs['PIR' + n] && regs['PIE' + n]) {
+                layout.pir.push({ flag: parseInt(regs['PIR' + n], 16), enable: parseInt(regs['PIE' + n], 16) });
+            }
+        });
+    }
+    return layout;
+};
+
 // Export per uso globale
 if (typeof window !== 'undefined') {
     window.DeviceLoader = DeviceLoader;

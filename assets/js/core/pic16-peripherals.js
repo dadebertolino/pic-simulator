@@ -16,6 +16,8 @@ class PIC16Peripheral {
     constructor(name, cpu) {
         this.name = name;
         this.cpu = cpu;
+        // true se la periferica lavora anche con l'oscillatore fermo (SLEEP)
+        this.runsInSleep = false;
     }
 
     /**
@@ -166,6 +168,17 @@ class PIC16PeripheralRegistry {
     tickAll(cycles) {
         for (const p of this.tickList) {
             p.tick(cycles);
+        }
+    }
+
+    /**
+     * Durante SLEEP: tick() solo alle periferiche che non dipendono
+     * dall'oscillatore della CPU.
+     * @param {number} cycles
+     */
+    tickSleeping(cycles) {
+        for (const p of this.tickList) {
+            if (p.runsInSleep) p.tick(cycles);
         }
     }
 

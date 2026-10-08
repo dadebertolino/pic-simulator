@@ -36,6 +36,9 @@ class PIC16Factory {
             spec = this.deviceLoader.devices[deviceId] || null;
         }
         
+        // Indirizzi che dipendono dalla famiglia (EEPROM, PIR/PIE, specchi RAM)
+        var layout = DeviceLoader.memoryLayout(spec ? deviceId : 'PIC16F84A', spec);
+
         // Config core dalla spec o default PIC16F84A
         var config;
         if (spec) {
@@ -55,6 +58,10 @@ class PIC16Factory {
             config = { programSize: 1024, ramSize: 256, eepromSize: 64, stackDepth: 8, banks: 2 };
             warnings.push('Device spec not found, using PIC16F84A defaults');
         }
+        config.gprMirror = layout.gprMirror;
+        config.common = layout.common;
+        config.pir = layout.pir;
+        config.eeInterrupt = layout.pir.length ? null : layout.eeprom;
         
         var cpu = new PIC16Core(config);
         var peripheralList = [];
@@ -74,9 +81,9 @@ class PIC16Factory {
         }
 
         // === EEPROM ===
-        if (typeof PIC16EEPROM !== 'undefined') {
+        if (typeof PIC16EEPROM !== 'undefined' && config.eepromSize > 0) {
             var eepSize = config.eepromSize;
-            cpu.addPeripheral(new PIC16EEPROM(cpu, { size: eepSize }));
+            cpu.addPeripheral(new PIC16EEPROM(cpu, { size: eepSize, regs: layout.eeprom, con1Mask: layout.eeprom.con1Mask }));
             peripheralList.push('EEPROM(' + eepSize + ')');
         }
 
@@ -84,6 +91,10 @@ class PIC16Factory {
         if (spec && spec.peripherals) {
             this._createAdvancedPeripherals(cpu, spec, peripheralList, warnings);
         }
+
+        // Power-on reset con le periferiche al loro posto (TRIS = ingressi,
+        // OPTION_REG = 0xFF...): il costruttore del core le precede.
+        cpu.reset();
 
         return {
             cpu: cpu,
@@ -110,18 +121,6 @@ class PIC16Factory {
             var letter = portName.replace('PORT', '');
             var dataAddr = parseInt(portSpec.dataReg, 16);
             var trisAddr = parseInt(portSpec.trisReg, 16);
-            
-            // Controlla conflitti indirizzi con EEPROM (877A: PORTD=0x08, PORTE=0x09)
-            // Per ora supportiamo solo bank 0/1, quindi PORTD/E del 877A avranno conflitto
-            // con EEDATA/EEADR. Li creiamo comunque ma segnaliamo il warning.
-            var conflict = false;
-            if (dataAddr === 0x08 || dataAddr === 0x09) {
-                // Conflitto potenziale con EEDATA/EEADR - ok se il device ha 4 bank
-                // Per ora segnaliamo
-                if (spec.memory && spec.memory.ram && spec.memory.ram.banks > 2) {
-                    warnings.push(portName + ' at ' + portSpec.dataReg + ' (4-bank device, limited support)');
-                }
-            }
             
             // Cerca funzioni speciali sui pin
             var hasT0CKI = false;

@@ -18,6 +18,11 @@ class PIC16Core {
      * @param {number} [config.ramSize=256] - Dimensione RAM (bytes)
      * @param {number} [config.eepromSize=64] - Dimensione EEPROM (bytes)
      * @param {number} [config.stackDepth=8] - Profondita' stack
+     * @param {number} [config.banks=2] - Banchi di RAM (2 o 4)
+     * @param {object} [config.gprMirror] - GPR del banco 1 specchio del banco 0 ({start, end}, 16F84A)
+     * @param {boolean} [config.common] - Area comune 0x70-0x7F in tutti i banchi
+     * @param {Array} [config.pir] - Coppie {flag, enable} dei registri PIR/PIE
+     * @param {object} [config.eeInterrupt] - Senza PIR: {flag, enable} di EEIF/EEIE ({addr, bit})
      */
     constructor(config) {
         config = config || {};
@@ -26,7 +31,11 @@ class PIC16Core {
             ramSize: config.ramSize || 256,
             eepromSize: config.eepromSize || 64,
             stackDepth: config.stackDepth || 8,
-            banks: config.banks || 2
+            banks: config.banks || 2,
+            gprMirror: config.gprMirror || null,
+            common: !!config.common,
+            pir: config.pir || [],
+            eeInterrupt: config.eeInterrupt || null
         };
 
         // Memoria
@@ -47,6 +56,7 @@ class PIC16Core {
         this.onStep = null;
         this.onStackOverflow = null;  // callback(depth, type='overflow'|'underflow')
 
+        this.buildAddressMap();
         this.reset();
     }
 
@@ -66,6 +76,7 @@ class PIC16Core {
         this.cycles = 0;
         this.running = false;
         this.sleeping = false;
+        this.skipIrqOnce = false; // dopo il risveglio esegue un'istruzione prima del vettore
 
         // Built-in peripherals state
         this.wdtCounter = 0;
@@ -98,113 +109,143 @@ class PIC16Core {
     // ================================================================
 
     /**
-     * Calcola l'indirizzo RAM effettivo considerando il bank select.
-     * 
-     * PIC16 mid-range memory map:
-     *   Bank 0: 0x000-0x07F   Bank 1: 0x080-0x0FF
-     *   Bank 2: 0x100-0x17F   Bank 3: 0x180-0x1FF
-     * 
-     * Registri mirrored (accessibili da qualsiasi bank):
-     *   0x00 INDF, 0x02 PCL, 0x03 STATUS, 0x04 FSR,
-     *   0x0A PCLATH, 0x0B INTCON
-     * 
-     * GPR 0x70-0x7F mirrored in tutti i bank (per device 4-bank)
-     * 
+     * Costruisce la tabella indirizzo fisico -> registro che lo implementa.
+     *
+     * PIC16 mid-range: banco 0 = 0x000-0x07F, 1 = 0x080-0x0FF,
+     * 2 = 0x100-0x17F, 3 = 0x180-0x1FF. Alcune celle esistono una volta
+     * sola e compaiono in piu' banchi:
+     *   - INDF, PCL, STATUS, FSR, PCLATH, INTCON in tutti i banchi;
+     *   - 16F84A: GPR del banco 1 (0x8C-0xCF) = banco 0 (0x0C-0x4F);
+     *   - device a 4 banchi: area comune 0x70-0x7F; TMR0 e PORTB ripetuti
+     *     nel banco 2 (0x101, 0x106), OPTION_REG e TRISB nel 3 (0x181, 0x186).
+     * -1 = locazione non implementata: si legge 0 e le scritture si perdono.
+     * Vale sia per l'indirizzamento diretto sia per quello tramite FSR.
+     */
+    buildAddressMap() {
+        var size = this.config.banks * 0x80;
+        var mirror = this.config.gprMirror;
+        var map = new Int16Array(size);
+
+        for (var full = 0; full < size; full++) {
+            var low = full & 0x7F;
+            var bank = full >> 7;
+            var reg = full;
+
+            if (low === 0x00 || low === 0x02 || low === 0x03 ||
+                low === 0x04 || low === 0x0A || low === 0x0B) {
+                reg = low;
+            } else if (mirror && low >= mirror.start) {
+                reg = low <= mirror.end ? low : -1;
+            } else if (mirror && low === 0x07) {
+                reg = -1;
+            } else if (this.config.common && low >= 0x70) {
+                reg = low;
+            } else if (bank >= 2 && (low === 0x01 || low === 0x06)) {
+                reg = (bank === 3 ? 0x80 : 0) | low;
+            }
+            map[full] = reg < this.ram.length ? reg : -1;
+        }
+        this.addressMap = map;
+    }
+
+    /** Indirizzo fisico di un operando a 7 bit: RP1:RP0 scelgono il banco. */
+    directAddress(addr) {
+        var bank = (this.ram[0x03] >> 5) & 0x03;
+        if (this.config.banks <= 2) bank &= 0x01;
+        return (bank << 7) | (addr & 0x7F);
+    }
+
+    /** Registro che implementa un indirizzo fisico (-1 se non implementato). */
+    mapAddress(full) {
+        return this.addressMap[full & (this.addressMap.length - 1)];
+    }
+
+    /**
+     * Indirizzo effettivo per un operando a 7 bit con i banchi correnti.
      * @param {number} addr - Indirizzo 7-bit dall'istruzione (0x00-0x7F)
-     * @returns {number} Indirizzo effettivo nella RAM array
+     * @returns {number} Indice nella RAM (-1 se non implementato)
      */
     getEffectiveAddress(addr) {
-        // Registri mirrored: stessi in tutti i bank
-        if (addr === 0x00 || addr === 0x02 || addr === 0x03 ||
-            addr === 0x04 || addr === 0x0A || addr === 0x0B) {
-            return addr;
-        }
+        return this.mapAddress(this.directAddress(addr));
+    }
 
-        // Bank select: RP1:RP0 da STATUS (bits 6:5)
-        var status = this.ram[0x03];
-        var bank = (status >> 5) & 0x03; // 0-3
-
-        // Per device 2-bank: ignora RP1 (backward compat)
-        if (this.config.banks <= 2) {
-            bank = bank & 0x01;
-        }
-
-        // GPR mirrored 0x70-0x7F (solo device 4-bank)
-        if (this.config.banks >= 4 && addr >= 0x70 && addr <= 0x7F) {
-            return addr; // Sempre bank 0
-        }
-
-        // Indirizzo effettivo = bank_offset + addr
-        return (bank * 0x80) + addr;
+    /** Indirizzo fisico puntato da INDF: IRP:FSR. */
+    indirectAddress() {
+        return ((this.ram[0x03] & 0x80) << 1) | this.ram[0x04];
     }
 
     readRAM(addr) {
-        var effAddr = this.getEffectiveAddress(addr & 0x7F);
+        return this.readFile(this.directAddress(addr));
+    }
 
-        // INDF: indirect addressing via FSR + IRP
-        if (effAddr === 0x00) {
-            var fsr = this.ram[0x04];
-            var irp = (this.ram[0x03] >> 7) & 0x01;
-            var indAddr = fsr | (irp << 8);
-            if (indAddr >= this.ram.length) indAddr &= (this.ram.length - 1);
-            return this.ram[indAddr];
+    writeRAM(addr, value) {
+        this.writeFile(this.directAddress(addr), value);
+    }
+
+    /** Lettura di un indirizzo fisico, con la logica delle SFR e delle periferiche. */
+    readFile(full) {
+        var reg = this.mapAddress(full);
+
+        if (reg < 0) return 0;
+
+        // INDF: la cella puntata da FSR, che passa dalla stessa logica
+        // (PORTB letto via FSR restituisce i pin). FSR che punta a INDF legge 0.
+        if (reg === 0x00) {
+            var target = this.indirectAddress();
+            return this.mapAddress(target) === 0x00 ? 0 : this.readFile(target);
         }
 
-        // PCL
-        if (effAddr === 0x02) {
+        if (reg === 0x02) {
             return this.PC & 0xFF;
         }
 
         // === HOOK PERIFERICHE PLUGGABILI ===
-        var handler = this.peripherals.getHandler(effAddr);
+        var handler = this.peripherals.getHandler(reg);
         if (handler) {
-            return handler.read(effAddr);
+            return handler.read(reg);
         }
 
-        // Default: lettura diretta RAM
-        return this.ram[effAddr];
+        return this.ram[reg];
     }
 
-    writeRAM(addr, value) {
-        var effAddr = this.getEffectiveAddress(addr & 0x7F);
+    /** Scrittura di un indirizzo fisico, con la logica delle SFR e delle periferiche. */
+    writeFile(full, value) {
+        var reg = this.mapAddress(full);
         value &= 0xFF;
 
-        // INDF: indirect addressing via FSR + IRP
-        if (effAddr === 0x00) {
-            var fsr = this.ram[0x04];
-            var irp = (this.ram[0x03] >> 7) & 0x01;
-            var indAddr = fsr | (irp << 8);
-            if (indAddr >= this.ram.length) indAddr &= (this.ram.length - 1);
-            this.ram[indAddr] = value;
-            this.notifyMemoryChange(indAddr, value);
+        if (reg < 0) return;
+
+        // INDF: scrive nella cella puntata da FSR, periferiche comprese
+        if (reg === 0x00) {
+            var target = this.indirectAddress();
+            if (this.mapAddress(target) !== 0x00) this.writeFile(target, value);
             return;
         }
 
-        // PCL: mirrored, sempre addr 0x02
-        if (effAddr === 0x02) {
-            this.PC = (this.ram[0x0A] << 8) | value;
+        // PCL: il PC prende PCLATH<4:0> come parte alta
+        if (reg === 0x02) {
+            this.PC = ((this.ram[0x0A] & 0x1F) << 8) | value;
             this.ram[0x02] = value;
             this.notifyRegisterChange('PCL', value);
             return;
         }
 
-        // STATUS: bit 3,4 (PD,TO) non scrivibili — mirrored, sempre addr 0x03
-        if (effAddr === 0x03) {
+        // STATUS: bit 3,4 (PD,TO) non scrivibili
+        if (reg === 0x03) {
             this.ram[0x03] = (this.ram[0x03] & 0x18) | (value & 0xE7);
             this.notifyRegisterChange('STATUS', this.ram[0x03]);
             return;
         }
 
         // === HOOK PERIFERICHE PLUGGABILI ===
-        var handler = this.peripherals.getHandler(effAddr);
+        var handler = this.peripherals.getHandler(reg);
         if (handler) {
-            handler.write(effAddr, value);
+            handler.write(reg, value);
             return;
         }
 
-        // Default
-        this.ram[effAddr] = value;
-        this.notifyMemoryChange(effAddr, value);
+        this.ram[reg] = value;
+        this.notifyMemoryChange(reg, value);
     }
 
     // ================================================================
@@ -252,6 +293,12 @@ class PIC16Core {
      * @param {number} addr
      * @returns {number}
      */
+    /** EEPROM cancellata, come dopo la programmazione: ogni byte vale 0xFF. */
+    eraseEeprom() {
+        var eep = this.peripherals.get('EEPROM');
+        if (eep) eep.erase();
+    }
+
     readEEPROM(addr) {
         var eep = this.peripherals.get('EEPROM');
         return eep ? eep.readByte(addr) : 0;
@@ -279,14 +326,43 @@ class PIC16Core {
     //  INTERRUPT HANDLING
     // ================================================================
 
-    checkInterrupts() {
+    /**
+     * Sorgenti con flag e abilitazione accesi, senza guardare GIE. Le
+     * periferiche (PIR & PIE) contano solo con PEIE; sul 16F84A, che non ha
+     * PIR, INTCON.6 e' EEIE e abilita direttamente EEIF (in EECON1).
+     * @param {boolean} [withTimer0=true] - false per il risveglio da SLEEP
+     */
+    pendingInterrupt(withTimer0) {
         var intcon = this.ram[0x0B];
-        if (!(intcon & 0x80)) return false;
-        if ((intcon & 0x04) && (intcon & 0x20)) return true;
+        if (withTimer0 !== false && (intcon & 0x04) && (intcon & 0x20)) return true;
         if ((intcon & 0x02) && (intcon & 0x10)) return true;
         if ((intcon & 0x01) && (intcon & 0x08)) return true;
-        if ((this.ram[0x88] & 0x10) && (intcon & 0x40)) return true;
-        return false;
+
+        var pir = this.config.pir;
+        if (pir.length) {
+            if (!(intcon & 0x40)) return false;
+            for (var i = 0; i < pir.length; i++) {
+                if (this.ram[pir[i].flag] & this.ram[pir[i].enable]) return true;
+            }
+            return false;
+        }
+
+        var ee = this.config.eeInterrupt;
+        return !!ee && ((this.ram[ee.flag.addr] >> ee.flag.bit) & 1) === 1 &&
+            ((this.ram[ee.enable.addr] >> ee.enable.bit) & 1) === 1;
+    }
+
+    checkInterrupts() {
+        return (this.ram[0x0B] & 0x80) !== 0 && this.pendingInterrupt();
+    }
+
+    /**
+     * Sorgenti che risvegliano da SLEEP: ciascuna col proprio bit di
+     * abilitazione (e PEIE per le periferiche), a prescindere da GIE.
+     * Timer0 no: con l'oscillatore fermo non conta.
+     */
+    wakeUpPending() {
+        return this.pendingInterrupt(false);
     }
 
     handleInterrupt() {
@@ -326,8 +402,11 @@ class PIC16Core {
     //  STATUS FLAGS
     // ================================================================
 
-    setZ(value) {
-        if (value === 0) this.ram[0x03] |= 0x04;
+    // Riceve l'esito del confronto (setZ(result === 0)), come setC e setDC:
+    // un tempo confrontava l'argomento con 0, quindi true lo azzerava e Z
+    // non veniva mai impostato.
+    setZ(isZero) {
+        if (isZero) this.ram[0x03] |= 0x04;
         else this.ram[0x03] &= ~0x04;
     }
     setC(value) {
@@ -347,25 +426,44 @@ class PIC16Core {
 
     step() {
         if (this.sleeping) {
+            // Oscillatore fermo: il tempo passa ma i timer non contano.
             this.cycles++;
-            this.peripherals.tickAll(1);
-            if (this.checkInterrupts()) this.handleInterrupt();
+            this.peripherals.tickSleeping(1);
+            if (this.wakeUpPending()) {
+                this.sleeping = false;
+                // Con GIE = 1 il micro esegue l'istruzione dopo SLEEP e solo
+                // dopo salta al vettore; con GIE = 0 prosegue e basta.
+                this.skipIrqOnce = true;
+            }
             return;
         }
 
-        if (this.checkInterrupts()) {
+        // Il salto al vettore costa 2 cicli, come una CALL.
+        if (!this.skipIrqOnce && this.checkInterrupts()) {
             this.handleInterrupt();
+            this.cycles += 2;
+            this.tickPeripherals(2);
             return;
         }
+        this.skipIrqOnce = false;
 
+        var startCycles = this.cycles;
         var opcode = this.programMemory[this.PC & (this.config.programSize - 1)];
         this.PC = (this.PC + 1) & 0x1FFF;
 
+        // Le istruzioni da 2 cicli aggiungono il secondo in execute().
         this.execute(opcode);
-        this.peripherals.tickAll(1);
         this.cycles++;
+        this.tickPeripherals(this.cycles - startCycles);
 
         if (this.onStep) this.onStep(this.PC, opcode);
+    }
+
+    /** Avanza le periferiche di un ciclo istruzione alla volta. */
+    tickPeripherals(cycles) {
+        for (var i = 0; i < cycles; i++) {
+            this.peripherals.tickAll(1);
+        }
     }
 
     execute(opcode) {
@@ -552,8 +650,9 @@ class PIC16Core {
     RETFIE() { this.PC = this.popStack(); this.ram[0x0B] |= 0x80; this.cycles++; }
     CLRWDT() {
         this.wdtCounter = 0;
+        // Azzera il prescaler solo se e' assegnato al watchdog (PSA = 1).
         var tmr0 = this.peripherals.get('TMR0');
-        if (tmr0) tmr0.prescalerCount = 0;
+        if (tmr0 && (this.ram[0x81] & 0x08)) tmr0.prescalerCount = 0;
         this.ram[0x03] |= 0x18;
     }
     SLEEP() { this.sleeping = true; this.wdtCounter = 0; this.ram[0x03] &= ~0x08; this.ram[0x03] |= 0x10; }
@@ -578,13 +677,15 @@ class PIC16Core {
     }
 
     getState() {
+        var eep = this.peripherals.get('EEPROM');
+        var ee = eep ? eep.regs : { data: 0x08, addr: 0x09, con1: 0x88 };
         return {
             W: this.W, PC: this.PC,
             STATUS: this.ram[0x03], FSR: this.ram[0x04],
             PCLATH: this.ram[0x0A], INTCON: this.ram[0x0B],
             TMR0: this.ram[0x01], PORTA: this.ram[0x05], PORTB: this.ram[0x06],
             TRISA: this.ram[0x85], TRISB: this.ram[0x86], OPTION: this.ram[0x81],
-            EEDATA: this.ram[0x08], EEADR: this.ram[0x09], EECON1: this.ram[0x88],
+            EEDATA: this.ram[ee.data], EEADR: this.ram[ee.addr], EECON1: this.ram[ee.con1],
             cycles: this.cycles,
             stack: Array.from(this.stack), stackPointer: this.stackPointer,
             stackUsed: this.stackUsed, stackOverflow: this.stackOverflow, stackUnderflow: this.stackUnderflow,
