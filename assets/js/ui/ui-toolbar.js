@@ -9,7 +9,7 @@ class UIToolbar {
         this.ui = ctx.ui;
         this.animating = false;
         this.animateInterval = null;
-        this.animateSpeed = 500;
+        this.animateSpeed = 100; // ms tra due istruzioni di Animate (10 Hz)
         this.assembled = false;
         this.sourceModified = false;
     }
@@ -38,17 +38,21 @@ class UIToolbar {
 
         document.getElementById('asm-file-input')?.addEventListener('change', function(e) { self.handleAsmFile(e); });
 
+        // Velocita' di Run come frazione del chip reale a 4 MHz
+        var runSpeed = document.getElementById('run-speed');
+        if (runSpeed) {
+            runSpeed.addEventListener('change', function() {
+                self.simulator.setSpeedFactor(runSpeed.value === 'max' ? Infinity : parseFloat(runSpeed.value));
+            });
+        }
+
+        // Velocita' di Animate
         var speedSlider = document.getElementById('speed-slider');
         if (speedSlider) {
-            speedSlider.addEventListener('input', function(e) {
-                var speed = Math.pow(10, e.target.value);
-                self.simulator.setSpeed(speed);
-                var el = document.getElementById('speed-value');
-                if (el) el.textContent = self.formatSpeed(speed);
-            });
-            // Il motore parte in tempo reale: allinealo al valore mostrato.
-            this.simulator.setSpeed(Math.pow(10, speedSlider.value));
+            speedSlider.addEventListener('input', function() { self.setAnimateSpeed(speedSlider.value); });
         }
+
+        this.simulator.onStepOverDone = function() { self.onStepOverDone(); };
 
         document.addEventListener('keydown', function(e) { self.handleKeyboard(e); });
         this.updateSimulationButtons();
@@ -108,7 +112,44 @@ class UIToolbar {
     }
 
     step() { if (!this.canSimulate()) return; this.simulator.step(); }
-    stepOver() { if (!this.canSimulate()) return; this.simulator.stepOver(); }
+    /**
+     * Step Over: su una CALL la subroutine gira nel ciclo di Run alla
+     * massima velocita'; i pulsanti restano quelli di Run finche'
+     * onStepOverDone o un breakpoint non la fermano.
+     */
+    stepOver() {
+        if (!this.canSimulate() || this.simulator.running) return;
+        if (this.animating) this.stopAnimate();
+        if (this.simulator.stepOver() === 'call') {
+            this.setRunningState(true);
+            this.ui.setStatusBar('running', 'Step Over...');
+        }
+    }
+
+    onStepOverDone() {
+        this.setRunningState(false);
+        this.ui.setStatusBar('assembled', 'Step Over');
+        this.ui.update();
+    }
+
+    /**
+     * Slider da 1 a 5: 1, 2, 10, 20, 100 istruzioni al secondo. Se Animate
+     * e' in corso riparte subito al nuovo ritmo.
+     */
+    setAnimateSpeed(position) {
+        var hz = [1, 2, 10, 20, 100][parseInt(position, 10) - 1] || 10;
+        this.animateSpeed = 1000 / hz;
+
+        var slider = document.getElementById('speed-slider');
+        if (slider) slider.setAttribute('aria-valuetext', hz + (hz === 1 ? ' instruction' : ' instructions') + ' per second');
+        var label = document.getElementById('speed-value');
+        if (label) label.textContent = hz + ' Hz';
+
+        if (this.animating) {
+            this.stopAnimate();
+            this.startAnimate();
+        }
+    }
     stepOut() { if (!this.canSimulate()) return; this.simulator.stepOut(); }
 
     reset() {
@@ -178,11 +219,5 @@ class UIToolbar {
         };
         reader.readAsText(file);
         e.target.value = '';
-    }
-
-    formatSpeed(hz) {
-        if (hz >= 1000000) return (hz / 1000000).toFixed(1) + ' MHz';
-        if (hz >= 1000) return (hz / 1000).toFixed(1) + ' kHz';
-        return hz.toFixed(0) + ' Hz';
     }
 }

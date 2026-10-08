@@ -17,6 +17,8 @@
     --pic-accent: #38bdf8;
     --pic-accent-dim: #0ea5e9;
     --pic-accent-glow: rgba(56, 189, 248, 0.25);
+    /* Testo azzurro sullo sfondo dei campi (#475569): #38bdf8 arriva a 3,5:1 */
+    --pic-accent-text: #7dd3fc;
     
     /* Feedback colors - più saturi e allegri */
     --pic-success: #4ade80;
@@ -109,7 +111,7 @@
     background: var(--pic-bg-input);
     border: 1px solid var(--pic-border);
     border-radius: var(--pic-radius);
-    color: var(--pic-accent);
+    color: var(--pic-accent-text);
     font-family: var(--pic-font-mono);
     font-size: 12px;
     font-weight: 600;
@@ -161,7 +163,27 @@
     font-family: var(--pic-font-mono);
     font-size: 11px;
     color: var(--pic-text);
-    min-width: 55px;
+    min-width: 40px;
+}
+
+.pic-speed-control select {
+    background: var(--pic-bg-input);
+    border: 1px solid var(--pic-border);
+    border-radius: var(--pic-radius);
+    color: var(--pic-text);
+    font-size: 11px;
+    font-family: var(--pic-font-ui);
+    padding: 3px 6px;
+    cursor: pointer;
+}
+
+.pic-speed-control select:hover {
+    border-color: var(--pic-accent);
+}
+
+/* La CPU del browser non riesce a tenere la velocita' di Run scelta */
+.pic-sim-time-lagging {
+    color: var(--pic-warning);
 }
 
 /* Main Layout */
@@ -235,6 +257,7 @@
 .pic-btn:hover:not(:disabled) {
     background: var(--pic-bg-hover);
     border-color: var(--pic-border-light);
+    color: var(--pic-text-bright); /* #f1f5f9 su #64748b arriva a 4,3:1 */
 }
 
 .pic-btn:disabled {
@@ -245,23 +268,24 @@
 .pic-btn-primary {
     background: var(--pic-accent-dim);
     border-color: var(--pic-accent);
-    color: var(--pic-text-bright);
+    color: #0f172a; /* il bianco sull'azzurro arriva a 2,8:1 */
 }
 
 .pic-btn-primary:hover:not(:disabled) {
     background: var(--pic-accent);
 }
 
+/* Testo in tinte chiare: le versioni sature arrivano a 4,2:1 sullo sfondo velato */
 .pic-btn-success {
     background: rgba(0, 255, 136, 0.15);
     border-color: var(--pic-success);
-    color: var(--pic-success);
+    color: #86efac;
 }
 
 .pic-btn-danger {
     background: rgba(255, 68, 102, 0.15);
     border-color: var(--pic-error);
-    color: var(--pic-error);
+    color: #fca5a5;
 }
 
 .pic-btn-small {
@@ -349,7 +373,7 @@
 
 .pic-gutter-row.current .pic-gutter-ln {
     background: var(--pic-accent-glow);
-    color: var(--pic-accent);
+    color: var(--pic-text-bright);
 }
 
 .pic-gutter-row.error .pic-gutter-ln {
@@ -397,7 +421,7 @@
 .pic-btn-animate {
     background: rgba(255, 170, 0, 0.15);
     border-color: #ffaa00;
-    color: #ffaa00;
+    color: #fcd34d;
 }
 
 .pic-btn-animate:hover:not(:disabled) {
@@ -747,7 +771,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.8px;
-    color: var(--pic-accent-dim);
+    color: var(--pic-accent);
     padding: 4px 0 3px;
     border-bottom: 1px solid var(--pic-border);
     margin-bottom: 5px;
@@ -784,7 +808,7 @@
 .pic-reg-value {
     font-family: var(--pic-font-mono);
     font-size: 12px;
-    color: var(--pic-accent);
+    color: var(--pic-accent-text);
 }
 
 .pic-status-bits {
@@ -810,7 +834,7 @@
 
 .pic-bit.set {
     background: rgba(0, 255, 136, 0.2);
-    color: var(--pic-success);
+    color: #bbf7d0; /* #4ade80 su questo verde arriva a 3,8:1 */
 }
 
 /* Interrupt Viewer */
@@ -971,14 +995,14 @@
 .pic-port-badge {
     font-size: 9px;
     font-weight: 400;
-    color: var(--pic-accent-dim);
+    color: var(--pic-accent);
     margin-left: 6px;
     font-family: var(--pic-font-mono);
 }
 
 .pin-alt {
     font-size: 7px;
-    color: var(--pic-warning);
+    color: #fde68a; /* #fbbf24 sul fondo del pin arriva a 3,7:1 */
     font-family: var(--pic-font-mono);
     background: rgba(251, 191, 36, 0.12);
     padding: 1px 3px;
@@ -3139,7 +3163,7 @@
 
 .pic-btn-download:not(:disabled) {
     border-color: var(--pic-accent-dim);
-    color: var(--pic-accent);
+    color: var(--pic-accent-text);
 }
 
 /* Warning message */
@@ -3178,19 +3202,20 @@
     font-size: 11px;
 }
 
+/* Tinte chiare: contrasto WCAG AA sul testo da 11px */
 .pic-sim-container .message.success {
     background: rgba(0, 255, 136, 0.15);
-    color: var(--pic-success);
+    color: #86efac;
 }
 
 .pic-sim-container .message.error {
     background: rgba(255, 68, 102, 0.15);
-    color: var(--pic-error);
+    color: #fca5a5;
 }
 
 .pic-sim-container .message.info {
     background: var(--pic-accent-glow);
-    color: var(--pic-accent);
+    color: #bae6fd;
 }
 
 /* Dialog */
@@ -3444,5 +3469,32 @@
     
     .pic-sidebar {
         max-height: 300px;
+    }
+
+    /* Testata su piu' righe: in una sola sbordava dal contenitore */
+    .pic-header {
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        padding: 8px 12px;
+    }
+
+    .pic-device-selector {
+        padding: 0;
+        border: none;
+    }
+
+    .pic-speed-control {
+        flex-wrap: wrap;
+    }
+
+    /* Il gruppo File con il menu degli esempi sbordava di qualche pixel */
+    .pic-toolbar-group {
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    .pic-select-examples {
+        min-width: 0;
+        flex: 1 1 120px;
     }
 }

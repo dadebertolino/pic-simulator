@@ -112,12 +112,6 @@ class PICStorageWP {
                 this.ui.setSource(project.source || '');
                 
                 this.ui.simulator.clearAllBreakpoints();
-                if (project.breakpoints) {
-                    for (const bp of project.breakpoints) {
-                        this.ui.simulator.cpu.setBreakpoint(bp);
-                    }
-                }
-                
                 if (project.watches) {
                     this.ui.watches = project.watches;
                     this.ui.updateWatches();
@@ -125,7 +119,14 @@ class PICStorageWP {
                 
                 this.ui.showMessage(`Project "${name}" loaded`, 'success');
                 picSimCloseDialog();
-                this.ui.assemble();
+                // Prima l'assemblaggio, che puo' cambiare device (e CPU):
+                // i breakpoint vanno sulla CPU definitiva.
+                await this.ui.assemble();
+                if (project.breakpoints) {
+                    for (const bp of project.breakpoints) {
+                        this.ui.simulator.cpu.setBreakpoint(bp);
+                    }
+                }
             } else {
                 this.ui.showError(result.data?.message || 'Load failed');
             }

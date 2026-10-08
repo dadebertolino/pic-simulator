@@ -58,6 +58,10 @@ class UIMSSP {
         var logArea = document.createElement('div');
         logArea.className = 'pic-mssp-log';
         logArea.id = 'mssp-log';
+        // Scorrevole: deve raggiungerlo anche la tastiera
+        logArea.tabIndex = 0;
+        logArea.setAttribute('role', 'log');
+        logArea.setAttribute('aria-label', 'MSSP bus log');
         container.appendChild(logArea);
 
         var self = this;

@@ -133,7 +133,49 @@ class SimulatorUI {
     //  ASSEMBLY (coordinato tra editor, toolbar, report)
     // ================================================================
 
+    /**
+     * Device dichiarato dal sorgente con LIST P= o PROCESSOR, se e' tra
+     * quelli disponibili e diverso da quello selezionato; altrimenti null.
+     */
+    declaredDevice(source) {
+        if (!this.deviceLoader) return null;
+        var lines = String(source).split('\n');
+        for (var i = 0; i < lines.length; i++) {
+            var code = lines[i].split(';')[0];
+            var m = code.match(/^\s*LIST\b.*?\bP\s*=\s*(\w+)/i) || code.match(/^\s*PROCESSOR\s+(\w+)/i);
+            if (!m) continue;
+            var id = m[1].toUpperCase();
+            if (id.indexOf('PIC') !== 0) id = 'PIC' + id;
+            var known = this.deviceLoader.getAvailableDevices().some(function(d) { return d.id === id; });
+            return known && id !== this.currentDeviceId ? id : null;
+        }
+        return null;
+    }
+
+    /**
+     * Passa al device dichiarato dal sorgente, caricandone la scheda se
+     * serve: un esempio per 877A con il 16F84A selezionato non si
+     * assemblava (simboli sconosciuti) e avrebbe girato sulla CPU sbagliata.
+     * @returns {Promise<boolean>} true se il device e' cambiato
+     */
+    ensureDeviceForSource(source) {
+        var id = this.declaredDevice(source);
+        if (!id) return Promise.resolve(false);
+        var self = this;
+        return this.deviceLoader.loadDevice(id).then(function() {
+            self.changeDevice(id);
+            var select = document.getElementById('device-select');
+            if (select) select.value = id;
+            return true;
+        }).catch(function() { return false; });
+    }
+
     assemble() {
+        var self = this;
+        return this.ensureDeviceForSource(this.getSource()).then(function() { self.assembleCurrent(); });
+    }
+
+    assembleCurrent() {
         // Carica simboli device nell'assembler prima di assemblare
         var assembler = this.simulator.assembler;
         assembler._deviceLoader = this.deviceLoader;
@@ -466,11 +508,15 @@ class SimulatorUI {
         select.addEventListener('change', function() {
             var opt = select.options[select.selectedIndex];
             if (opt && opt._example) {
-                self.setSource(opt._example.source);
+                var example = opt._example;
+                self.setSource(example.source);
                 self.toolbarModule.assembled = false;
                 self.toolbarModule.sourceModified = false;
                 self.toolbarModule.updateSimulationButtons();
-                self.showMessage('Loaded: ' + opt._example.name, 'success');
+                // Porte e periferiche del device dell'esempio, gia' prima di assemblare
+                self.ensureDeviceForSource(example.source).then(function() {
+                    self.showMessage('Loaded: ' + example.name, 'success');
+                });
             }
             select.selectedIndex = 0;
         });
@@ -5577,6 +5623,22 @@ D2: DECFSZ DL2, F\n\
         var instr = this.simulator.getCurrentInstruction();
         var instrEl = document.getElementById('current-instruction');
         if (instrEl) instrEl.textContent = instr.address.toString(16).toUpperCase().padStart(3, '0') + ': ' + instr.disassembly;
+
+        // Tempo trascorso sul chip simulato
+        var simTime = document.getElementById('sim-time');
+        if (simTime) {
+            simTime.textContent = this.formatTime(this.simulator.getSimulatedTime());
+            var lagging = this.simulator.running && this.simulator.lagging;
+            simTime.classList.toggle('pic-sim-time-lagging', lagging);
+            simTime.title = lagging ? 'The browser cannot simulate at this speed' : '';
+        }
+    }
+
+    /** Secondi in µs, ms o s, con tre cifre significative circa. */
+    formatTime(seconds) {
+        if (seconds < 1e-3) return (seconds * 1e6).toFixed(0) + ' µs';
+        if (seconds < 1) return (seconds * 1e3).toFixed(1) + ' ms';
+        return seconds.toFixed(3) + ' s';
     }
 }
 

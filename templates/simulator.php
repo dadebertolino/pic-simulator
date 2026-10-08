@@ -38,7 +38,7 @@ if ($is_fullwidth) {
                 <span class="pic-author">by Prof. D.Bertolino</span>
             </div>
             <div class="pic-device-selector">
-                <label>Device:</label>
+                <label for="device-select">Device:</label>
                 <select id="device-select">
                     <option value="PIC16F84A" selected>PIC16F84A</option>
                     <!-- Altri dispositivi caricati dinamicamente -->
@@ -46,9 +46,17 @@ if ($is_fullwidth) {
                 <span id="device-info" class="pic-device-info" title="Click for details">1K / 68B / 2 ports</span>
             </div>
             <div class="pic-speed-control">
-                <label>Speed:</label>
-                <input type="range" id="speed-slider" min="1" max="6" step="0.5" value="3">
-                <span id="speed-value">1 kHz</span>
+                <label for="run-speed">Run:</label>
+                <select id="run-speed" class="pic-select" title="Run speed compared to the real chip at 4 MHz">
+                    <option value="1" selected>Real time</option>
+                    <option value="0.1">1/10</option>
+                    <option value="0.01">1/100</option>
+                    <option value="0.001">1/1000</option>
+                    <option value="max">Max</option>
+                </select>
+                <label for="speed-slider">Animate:</label>
+                <input type="range" id="speed-slider" min="1" max="5" step="1" value="3" title="Animate speed (instructions per second)" aria-valuetext="10 instructions per second">
+                <span id="speed-value">10 Hz</span>
             </div>
         </header>
 
@@ -190,7 +198,7 @@ if ($is_fullwidth) {
                     </div>
                     <div class="pic-panel-content pic-collapse-body" id="virtual-hw-container">
                         <div class="pic-vhw-toolbar">
-                            <select class="pic-select pic-select-vhw" id="vhw-config-select">
+                            <select class="pic-select pic-select-vhw" id="vhw-config-select" aria-label="Add virtual component">
                                 <option value="none">-- Add Component --</option>
                                 <option value="7seg-1">7-Seg (1 digit, PORTB)</option>
                                 <option value="7seg-4">7-Seg (4 digit, mux)</option>
@@ -241,7 +249,7 @@ if ($is_fullwidth) {
                             <button class="pic-memory-tab" data-type="eeprom">EEPROM</button>
                             <button class="pic-memory-tab" data-type="variables">Variables</button>
                         </div>
-                        <div id="memory-content"></div>
+                        <div id="memory-content" tabindex="0" role="region" aria-label="Memory contents"></div>
                     </div>
                 </div>
 
@@ -287,6 +295,8 @@ if ($is_fullwidth) {
             </div>
             <span class="pic-status-sep">|</span>
             <span>Cycles: <strong id="cycles">0</strong></span>
+            <span class="pic-status-sep">|</span>
+            <span title="Time elapsed on the simulated chip at 4 MHz">Time: <strong id="sim-time">0 µs</strong></span>
             <span class="pic-status-sep">|</span>
             <span id="current-instruction" class="pic-current-instr">-</span>
             <div id="messages" class="pic-messages"></div>

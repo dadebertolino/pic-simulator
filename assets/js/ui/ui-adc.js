@@ -62,6 +62,7 @@ class UIADC {
         slider.max = '1023';
         slider.value = String(adc.getChannelValue(ch));
         slider.id = 'adc-slider-' + ch;
+        slider.setAttribute('aria-label', 'AN' + ch + ' input (0-1023)');
         slider.addEventListener('input', function() {
             var val = parseInt(slider.value);
             adc.setChannelValue(ch, val);

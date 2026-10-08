@@ -84,6 +84,7 @@ class UIComparator {
         slider.className = 'pic-adc-slider';
         slider.min = '0';
         slider.max = '500';
+        slider.setAttribute('aria-label', 'AN' + ch + ' voltage (0-5 V)');
         slider.value = String(Math.round(comp.getInputVoltage(ch) * 100));
         slider.addEventListener('input', function() {
             var volts = parseInt(slider.value) / 100;

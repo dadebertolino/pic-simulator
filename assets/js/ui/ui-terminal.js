@@ -42,6 +42,10 @@ class UITerminal {
         var txArea = document.createElement('div');
         txArea.className = 'pic-term-output';
         txArea.id = 'term-tx';
+        // Scorrevole: deve raggiungerlo anche la tastiera; i caratteri nuovi li legge lo screen reader
+        txArea.tabIndex = 0;
+        txArea.setAttribute('role', 'log');
+        txArea.setAttribute('aria-label', 'Serial output (TX)');
         container.appendChild(txArea);
 
         // RX input area
