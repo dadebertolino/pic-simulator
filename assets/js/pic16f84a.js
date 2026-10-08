@@ -14,18 +14,29 @@ class PIC16F84A {
         this.onBreakpoint = null;
         this.onStep = null;
 
+        // Memoria programma ed EEPROM sono non volatili: le scrive il
+        // programmatore (loadProgram, eraseEeprom) e il Reset non le tocca.
+        this.programMemory = new Uint16Array(1024);
+        this.eeprom = new Uint8Array(64);
+        this.eraseEeprom();
+        
+        // Livelli imposti sui pin dal circuito esterno (pulsanti): non
+        // dipendono dal reset del micro.
+        this.externalPortA = 0;
+        this.externalPortB = 0;
+        this.t0ckiPrev = 0;
+
         this.reset();
     }
 
+    /**
+     * Reset del micro (power-on o MCLR): registri, RAM, stack e PC tornano
+     * ai valori iniziali. Memoria programma ed EEPROM restano: e' cio' che
+     * permette all'esempio 07 di ritrovare il contatore dopo un Reset.
+     */
     reset() {
-        // Program memory: 1K x 14-bit
-        this.programMemory = new Uint16Array(1024);
-        
         // RAM: 256 bytes (include SFR e GPR)
         this.ram = new Uint8Array(256);
-        
-        // EEPROM: 64 bytes
-        this.eeprom = new Uint8Array(64);
         
         // Stack: 8 livelli, 13-bit
         this.stack = new Uint16Array(8);
@@ -43,6 +54,8 @@ class PIC16F84A {
         // Prescaler
         this.prescaler = 0;
         this.prescalerCount = 0;
+        this.tmr0Inhibit = 0;   // cicli in cui TMR0 resta fermo dopo una scrittura
+        this.skipIrqOnce = false; // dopo il risveglio esegue un'istruzione prima del vettore
         
         // WDT
         this.wdtCounter = 0;
@@ -52,13 +65,13 @@ class PIC16F84A {
         this.eeWriteState = 0;
         this.eeWriteSequence = [];
         
-        // External inputs
-        this.externalPortA = 0;
-        this.externalPortB = 0;
-        this.t0ckiPrev = 0;
-        
         // Inizializza registri a valori di reset
         this.initRegisters();
+    }
+
+    /** EEPROM cancellata, come dopo la programmazione: ogni byte vale 0xFF. */
+    eraseEeprom() {
+        this.eeprom.fill(0xFF);
     }
 
     initRegisters() {
@@ -70,56 +83,64 @@ class PIC16F84A {
     }
 
     // === MEMORY ACCESS ===
-    
-    getEffectiveAddress(addr) {
-        // Bank selection via RP0
+
+    /**
+     * Indirizzo fisico (0x00-0xFF) di un operando a 7 bit: RP0 sceglie
+     * il banco.
+     */
+    directAddress(addr) {
         const bank = (this.ram[0x03] >> 5) & 0x01;
-        
-        // Indirizzi mappati in entrambi i bank
-        if (addr === 0x00 || addr === 0x02 || addr === 0x03 || 
-            addr === 0x04 || addr === 0x0A || addr === 0x0B) {
-            return addr;
+        return (bank << 7) | (addr & 0x7F);
+    }
+
+    /**
+     * Riduce un indirizzo fisico al registro che lo implementa. Le SFR
+     * comuni ai due banchi e i GPR 0x0C-0x4F esistono una volta sola, sia
+     * per l'indirizzamento diretto sia per quello tramite FSR (0x8C e 0x0C
+     * sono la stessa cella). -1 = locazione non implementata: si legge 0
+     * e le scritture si perdono.
+     */
+    mapAddress(full) {
+        const low = full & 0x7F;
+        if (low >= 0x0C) return low <= 0x4F ? low : -1;
+        if (low === 0x07) return -1;
+        if (low === 0x00 || low === 0x02 || low === 0x03 || low === 0x04 || low === 0x0A || low === 0x0B) {
+            return low;
         }
-        
-        // GPR 0x0C-0x4F mappati in entrambi i bank
-        if (addr >= 0x0C && addr <= 0x4F) {
-            return addr;
-        }
-        
-        // Bank 1 offset
-        if (bank === 1 && addr < 0x0C) {
-            return addr + 0x80;
-        }
-        
-        return addr;
+        // Banco 1: OPTION_REG, TRISA, TRISB, EECON1, EECON2
+        return (full & 0x80) ? 0x80 | low : low;
     }
 
     readRAM(addr) {
-        const effAddr = this.getEffectiveAddress(addr & 0x7F);
+        return this.readFile(this.directAddress(addr));
+    }
+
+    writeRAM(addr, value) {
+        this.writeFile(this.directAddress(addr), value);
+    }
+
+    /** Lettura di un indirizzo fisico, con la logica delle SFR. */
+    readFile(full) {
+        const reg = this.mapAddress(full);
         
-        // INDF: indirect addressing
-        if (effAddr === 0x00 || effAddr === 0x80) {
-            const fsr = this.ram[0x04];
-            const irp = (this.ram[0x03] >> 7) & 0x01;
-            const indirectAddr = fsr | (irp << 8);
-            return this.ram[indirectAddr & 0xFF];
+        switch (reg) {
+            case -1:
+                return 0;
+            case 0x00:
+                // INDF: la cella puntata da FSR. FSR che punta a INDF legge 0.
+                return this.mapAddress(this.ram[0x04]) === 0x00 ? 0 : this.readFile(this.ram[0x04]);
+            case 0x02:
+                return this.PC & 0xFF;
+            case 0x05:
+                return this.readPortPins('A');
+            case 0x06:
+                return this.readPortPins('B');
+            case 0x89:
+                // EECON2 non e' un registro fisico: serve solo alla sequenza di sblocco.
+                return 0;
+            default:
+                return this.ram[reg];
         }
-        
-        // TMR0: read actual value
-        if (effAddr === 0x01) {
-            return this.ram[0x01];
-        }
-        
-        // PCL: return low byte of PC
-        if (effAddr === 0x02 || effAddr === 0x82) {
-            return this.PC & 0xFF;
-        }
-        
-        // PORTA / PORTB: read pins based on TRIS
-        if (effAddr === 0x05) return this.readPortPins('A');
-        if (effAddr === 0x06) return this.readPortPins('B');
-        
-        return this.ram[effAddr];
     }
 
     /**
@@ -144,125 +165,117 @@ class PIC16F84A {
         return result;
     }
 
-    writeRAM(addr, value) {
-        const effAddr = this.getEffectiveAddress(addr & 0x7F);
+    /** Scrittura di un indirizzo fisico, con la logica delle SFR. */
+    writeFile(full, value) {
+        const reg = this.mapAddress(full);
         value &= 0xFF;
         
-        // INDF: indirect addressing
-        if (effAddr === 0x00 || effAddr === 0x80) {
-            const fsr = this.ram[0x04];
-            const irp = (this.ram[0x03] >> 7) & 0x01;
-            const indirectAddr = fsr | (irp << 8);
-            this.ram[indirectAddr & 0xFF] = value;
-            this.notifyMemoryChange(indirectAddr & 0xFF, value);
-            return;
-        }
-        
-        // TMR0: write clears prescaler
-        if (effAddr === 0x01) {
-            this.ram[0x01] = value;
-            this.prescalerCount = 0;
-            // Inibisce incremento per 2 cicli (semplificato)
-            this.notifyRegisterChange('TMR0', value);
-            return;
-        }
-        
-        // PCL: write modifica PC
-        if (effAddr === 0x02 || effAddr === 0x82) {
-            this.PC = (this.ram[0x0A] << 8) | value;
-            this.ram[0x02] = value;
-            this.notifyRegisterChange('PCL', value);
-            return;
-        }
-        
-        // STATUS: solo alcuni bit scrivibili
-        if (effAddr === 0x03 || effAddr === 0x83) {
-            const mask = 0xE7; // bit 3,4 (PD,TO) non scrivibili
-            this.ram[0x03] = (this.ram[0x03] & ~mask) | (value & mask);
-            this.notifyRegisterChange('STATUS', this.ram[0x03]);
-            return;
-        }
-        
-        // PORTA
-        if (effAddr === 0x05) {
-            this.ram[0x05] = value & 0x1F;
-            this.notifyPortChange('A', this.getPortOutput('A'));
-            return;
-        }
-        
-        // PORTB
-        if (effAddr === 0x06) {
-            const oldValue = this.ram[0x06];
-            this.ram[0x06] = value;
-            this.notifyPortChange('B', this.getPortOutput('B'));
-            return;
-        }
-        
-        // EECON2: parte della sequenza di scrittura EEPROM
-        if (effAddr === 0x89) {
-            this.eeWriteSequence.push(value);
-            if (this.eeWriteSequence.length > 2) {
-                this.eeWriteSequence.shift();
-            }
-            return;
-        }
-        
-        // EECON1: controlla lettura/scrittura EEPROM
-        if (effAddr === 0x88) {
-            const oldVal = this.ram[0x88];
-            this.ram[0x88] = value & 0x1F;
+        switch (reg) {
+            case -1:
+                return;
             
-            // RD bit: inizio lettura EEPROM
-            if ((value & 0x01) && !(oldVal & 0x01)) {
-                const addr = this.ram[0x09];
-                if (addr < 64) {
-                    this.ram[0x08] = this.eeprom[addr];
+            case 0x00: {
+                // INDF: scrive nella cella puntata da FSR, passando dalla
+                // stessa logica: una scrittura su PORTB via FSR aggiorna i pin.
+                const target = this.ram[0x04];
+                if (this.mapAddress(target) !== 0x00) this.writeFile(target, value);
+                return;
+            }
+            
+            case 0x01:
+                // TMR0: la scrittura azzera il prescaler e blocca il conteggio
+                // per i due cicli successivi.
+                this.ram[0x01] = value;
+                this.prescalerCount = 0;
+                this.tmr0Inhibit = 2;
+                this.notifyRegisterChange('TMR0', value);
+                return;
+            
+            case 0x02:
+                // PCL: il PC prende PCLATH<4:0> come parte alta.
+                this.PC = ((this.ram[0x0A] & 0x1F) << 8) | value;
+                this.ram[0x02] = value;
+                this.notifyRegisterChange('PCL', value);
+                return;
+            
+            case 0x03: {
+                const mask = 0xE7; // bit 3,4 (PD,TO) non scrivibili
+                this.ram[0x03] = (this.ram[0x03] & ~mask) | (value & mask);
+                this.notifyRegisterChange('STATUS', this.ram[0x03]);
+                return;
+            }
+            
+            case 0x05:
+                this.ram[0x05] = value & 0x1F;
+                this.notifyPortChange('A', this.getPortOutput('A'));
+                return;
+            
+            case 0x06:
+                this.ram[0x06] = value;
+                this.notifyPortChange('B', this.getPortOutput('B'));
+                return;
+            
+            case 0x89:
+                // EECON2: parte della sequenza di scrittura EEPROM
+                this.eeWriteSequence.push(value);
+                if (this.eeWriteSequence.length > 2) {
+                    this.eeWriteSequence.shift();
                 }
-                this.ram[0x88] &= ~0x01; // Clear RD
-            }
+                return;
             
-            // WR bit: inizio scrittura EEPROM
-            if ((value & 0x02) && !(oldVal & 0x02)) {
-                // Verifica sequenza 0x55, 0xAA e WREN
-                if ((value & 0x04) && // WREN set
-                    this.eeWriteSequence.length >= 2 &&
-                    this.eeWriteSequence[0] === 0x55 &&
-                    this.eeWriteSequence[1] === 0xAA) {
-                    
+            case 0x88: {
+                // EECON1: controlla lettura/scrittura EEPROM
+                const oldVal = this.ram[0x88];
+                this.ram[0x88] = value & 0x1F;
+                
+                // RD bit: inizio lettura EEPROM
+                if ((value & 0x01) && !(oldVal & 0x01)) {
                     const addr = this.ram[0x09];
                     if (addr < 64) {
-                        this.eeprom[addr] = this.ram[0x08];
+                        this.ram[0x08] = this.eeprom[addr];
                     }
-                    // Set EEIF dopo completamento (semplificato: istantaneo).
-                    // EEIF vive in EECON1, non in INTCON: checkInterrupts()
-                    // lo combina con EEIE. Il bit 4 di INTCON e' INTE.
-                    this.ram[0x88] |= 0x10; // EEIF
-                    this.ram[0x88] &= ~0x02; // Clear WR
+                    this.ram[0x88] &= ~0x01; // Clear RD
                 }
-                this.eeWriteSequence = [];
+                
+                // WR bit: inizio scrittura EEPROM
+                if ((value & 0x02) && !(oldVal & 0x02)) {
+                    // Verifica sequenza 0x55, 0xAA e WREN
+                    if ((value & 0x04) && // WREN set
+                        this.eeWriteSequence.length >= 2 &&
+                        this.eeWriteSequence[0] === 0x55 &&
+                        this.eeWriteSequence[1] === 0xAA) {
+                        
+                        const addr = this.ram[0x09];
+                        if (addr < 64) {
+                            this.eeprom[addr] = this.ram[0x08];
+                        }
+                        // Set EEIF dopo completamento (semplificato: istantaneo).
+                        // EEIF vive in EECON1, non in INTCON: checkInterrupts()
+                        // lo combina con EEIE. Il bit 4 di INTCON e' INTE.
+                        this.ram[0x88] |= 0x10; // EEIF
+                        this.ram[0x88] &= ~0x02; // Clear WR
+                    }
+                    this.eeWriteSequence = [];
+                }
+                
+                this.notifyRegisterChange('EECON1', this.ram[0x88]);
+                return;
             }
             
-            this.notifyRegisterChange('EECON1', this.ram[0x88]);
-            return;
+            case 0x85:
+                this.ram[0x85] = value & 0x1F;
+                this.notifyPortChange('A', this.getPortOutput('A'));
+                return;
+            
+            case 0x86:
+                this.ram[0x86] = value;
+                this.notifyPortChange('B', this.getPortOutput('B'));
+                return;
+            
+            default:
+                this.ram[reg] = value;
+                this.notifyMemoryChange(reg, value);
         }
-        
-        // TRISA
-        if (effAddr === 0x85) {
-            this.ram[0x85] = value & 0x1F;
-            this.notifyPortChange('A', this.getPortOutput('A'));
-            return;
-        }
-        
-        // TRISB
-        if (effAddr === 0x86) {
-            this.ram[0x86] = value;
-            this.notifyPortChange('B', this.getPortOutput('B'));
-            return;
-        }
-        
-        // Default write
-        this.ram[effAddr] = value;
-        this.notifyMemoryChange(effAddr, value);
     }
 
     // === PORT I/O ===
@@ -306,10 +319,10 @@ class PIC16F84A {
                 this.handleINT(prevValue, value);
             }
             
-            // RB4-RB7 change interrupt
-            const rb47Old = (oldPortB >> 4) & 0x0F;
-            const rb47New = (this.externalPortB >> 4) & 0x0F;
-            if (rb47Old !== rb47New) {
+            // RB4-RB7 change interrupt: contano solo i pin configurati
+            // come ingresso, le uscite non generano RBIF.
+            const inputs = (this.ram[0x86] >> 4) & 0x0F;
+            if ((((oldPortB ^ this.externalPortB) >> 4) & inputs) !== 0) {
                 this.handleRBChange();
             }
         }
@@ -332,7 +345,6 @@ class PIC16F84A {
     handleINT(prevValue, newValue) {
         const option = this.ram[0x81];
         const intedg = (option >> 6) & 0x01;  // Bit 6: INTEDG
-        const intcon = this.ram[0x0B];
         
         // Check edge based on INTEDG
         // INTEDG = 1: rising edge (0->1)
@@ -341,16 +353,16 @@ class PIC16F84A {
             ? (prevValue === 0 && newValue === 1)   // Rising edge
             : (prevValue === 1 && newValue === 0);  // Falling edge
         
-        if (triggered && (intcon & 0x10)) { // INTE enabled
+        // Come sul chip, il flag si alza anche con INTE spento: INTE decide
+        // solo se il flag genera l'interrupt (checkInterrupts).
+        if (triggered) {
             this.ram[0x0B] |= 0x02; // Set INTF
         }
     }
 
     handleRBChange() {
-        const intcon = this.ram[0x0B];
-        if (intcon & 0x08) { // RBIE enabled
-            this.ram[0x0B] |= 0x01; // Set RBIF
-        }
+        // Anche RBIF si alza indipendentemente da RBIE.
+        this.ram[0x0B] |= 0x01;
     }
 
     // === TIMER0 ===
@@ -383,13 +395,21 @@ class PIC16F84A {
         this.notifyRegisterChange('TMR0', this.ram[0x01]);
     }
 
-    updateTMR0() {
-        const option = this.ram[0x81];
-        const t0cs = (option >> 5) & 0x01;
+    /**
+     * Clock interno: un passo (di TMR0 o del prescaler) per ciclo
+     * istruzione, quindi due per GOTO, CALL e gli skip. Dopo una scrittura
+     * di TMR0 il conteggio resta fermo per due cicli.
+     */
+    updateTMR0(cycles = 1) {
+        const t0cs = (this.ram[0x81] >> 5) & 0x01;
+        if (t0cs !== 0) return; // clock esterno su RA4/T0CKI
         
-        // Internal clock
-        if (t0cs === 0) {
-            this.incrementTMR0();
+        for (let i = 0; i < cycles; i++) {
+            if (this.tmr0Inhibit > 0) {
+                this.tmr0Inhibit--;
+            } else {
+                this.incrementTMR0();
+            }
         }
     }
 
@@ -414,6 +434,18 @@ class PIC16F84A {
         if ((this.ram[0x88] & 0x10) && (intcon & 0x40)) return true;
         
         return false;
+    }
+
+    /**
+     * Sorgenti che risvegliano da SLEEP: INT, cambio su RB4-RB7, fine
+     * scrittura EEPROM, ciascuna col proprio bit di abilitazione e a
+     * prescindere da GIE. Timer0 no: con l'oscillatore fermo non conta.
+     */
+    wakeUpPending() {
+        const intcon = this.ram[0x0B];
+        return ((intcon & 0x02) && (intcon & 0x10))
+            || ((intcon & 0x01) && (intcon & 0x08))
+            || ((this.ram[0x88] & 0x10) && (intcon & 0x40));
     }
 
     handleInterrupt() {
@@ -483,30 +515,39 @@ class PIC16F84A {
     
     step() {
         if (this.sleeping) {
+            // Oscillatore fermo: il tempo passa ma Timer0 non conta.
             this.cycles++;
-            this.updateTMR0();
-            if (this.checkInterrupts()) {
-                this.handleInterrupt();
+            if (this.wakeUpPending()) {
+                this.sleeping = false;
+                // Con GIE = 1 il micro esegue l'istruzione dopo SLEEP e solo
+                // dopo salta al vettore; con GIE = 0 prosegue e basta.
+                this.skipIrqOnce = true;
             }
             return;
         }
         
-        // Check interrupts before fetch
-        if (this.checkInterrupts()) {
+        // Check interrupts before fetch: il salto al vettore costa 2 cicli,
+        // come una CALL.
+        if (!this.skipIrqOnce && this.checkInterrupts()) {
             this.handleInterrupt();
+            this.cycles += 2;
+            this.updateTMR0(2);
             return;
         }
+        this.skipIrqOnce = false;
+        
+        const startCycles = this.cycles;
         
         // Fetch instruction
         const opcode = this.programMemory[this.PC & 0x3FF];
         this.PC = (this.PC + 1) & 0x1FFF;
         
-        // Decode and execute
+        // Decode and execute (le istruzioni da 2 cicli aggiungono il secondo)
         this.execute(opcode);
+        this.cycles++;
         
         // Update peripherals
-        this.updateTMR0();
-        this.cycles++;
+        this.updateTMR0(this.cycles - startCycles);
         
         // Notify
         if (this.onStep) {
@@ -846,7 +887,8 @@ class PIC16F84A {
 
     CLRWDT() {
         this.wdtCounter = 0;
-        this.prescalerCount = 0;
+        // Azzera il prescaler solo se e' assegnato al watchdog (PSA = 1).
+        if (this.ram[0x81] & 0x08) this.prescalerCount = 0;
         this.ram[0x03] |= 0x18; // Set TO and PD
     }
 

@@ -14,12 +14,22 @@ describe('Simulator', () => {
         assert.equal(sim.step(), false, 'senza un programma valido step non fa nulla');
     });
 
-    test('DE precarica la EEPROM, anche dopo un Reset', () => {
+    test('assemblare programma il chip: EEPROM cancellata e dati DE', () => {
         const sim = make();
         sim.loadSource('    NOP\n    ORG 0x2100\n    DE 0x11, 0x22');
-        assert.deepEqual(Array.from(sim.cpu.eeprom.slice(0, 2)), [0x11, 0x22]);
-        sim.cpu.eeprom[0] = 0;
+        assert.deepEqual(Array.from(sim.cpu.eeprom.slice(0, 3)), [0x11, 0x22, 0xFF]);
+    });
+
+    test('il Reset conserva programma ed EEPROM scritta dal programma', () => {
+        const sim = make();
+        sim.loadSource('    MOVLW 5\n    ORG 0x2100\n    DE 0x11');
+        sim.cpu.eeprom[0] = 0x99; // come se l'avesse scritta il programma
         sim.reset();
+        assert.equal(sim.cpu.eeprom[0], 0x99);
+        assert.equal(sim.cpu.programMemory[0], 0x3005);
+        
+        // Riassemblare riprogramma: torna il valore di DE.
+        sim.loadSource('    MOVLW 5\n    ORG 0x2100\n    DE 0x11');
         assert.equal(sim.cpu.eeprom[0], 0x11);
     });
 

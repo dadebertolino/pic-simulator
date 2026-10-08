@@ -56,11 +56,12 @@ class Simulator {
     }
 
     /**
-     * Programma il micro: memoria programma e contenuto iniziale della
-     * EEPROM dichiarato con DE a 0x2100.
+     * Programma il micro, come un programmatore: memoria programma, EEPROM
+     * cancellata (0xFF) e poi i dati dichiarati con DE a 0x2100.
      */
     loadIntoCpu() {
         this.cpu.loadProgram(this.assemblyResult.programMemory);
+        this.cpu.eraseEeprom();
         (this.assemblyResult.eepromData || []).forEach((value, addr) => {
             if (value !== undefined && addr < 64) this.cpu.eeprom[addr] = value;
         });
@@ -255,12 +256,9 @@ class Simulator {
 
     reset() {
         this.stop();
+        // Reset del micro: memoria programma ed EEPROM restano come sono.
         this.cpu.reset();
         this.stepCount = 0;
-        
-        if (this.assemblyResult?.success) {
-            this.loadIntoCpu();
-        }
         
         if (this.onUpdate) {
             this.onUpdate();

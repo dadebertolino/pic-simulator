@@ -6,8 +6,12 @@
 ; Difficoltà: Avanzato
 ; Concetti: EEPROM, EEDATA, EEADR, EECON1, EECON2, sequenza di scrittura
 ;
-; NOTA: Nel simulatore la EEPROM mantiene i dati durante la sessione
-;       ma si resetta quando ricarichi la pagina
+; PROVA: esegui per qualche secondo, premi Stop e poi Reset: il contatore
+;        riparte dal valore salvato. Come sul chip reale, la EEPROM non
+;        si cancella con il Reset ma quando riprogrammi il PIC: nel
+;        simulatore quando riassembli (o ricarichi la pagina). Appena
+;        programmata vale 0xFF, quindi la prima volta il conteggio parte
+;        da 0xFF.
 ; =============================================================================
 
     LIST P=16F84A
