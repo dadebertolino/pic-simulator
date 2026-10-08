@@ -766,9 +766,20 @@ class SimulatorUI {
         const panel = document.getElementById('error-panel');
         if (!panel) return;
         this.errorLines = errors.map(e => e.line).filter(l => l);
-        let html = '';
-        errors.forEach(err => { html += `<div class="picsim__error"><span>Line ${err.line || '?'}</span><span>${err.message}</span></div>`; });
-        panel.innerHTML = html;
+        // I messaggi riportano l'operando cosi' come scritto nel sorgente:
+        // vanno inseriti come testo, mai come HTML. Un .asm altrui aperto da
+        // un utente loggato eseguirebbe altrimenti script nell'origine del sito.
+        panel.textContent = '';
+        errors.forEach(err => {
+            const row = document.createElement('div');
+            row.className = 'picsim__error';
+            const line = document.createElement('span');
+            line.textContent = 'Riga ' + (err.line || '?');
+            const msg = document.createElement('span');
+            msg.textContent = err.message;
+            row.append(line, msg);
+            panel.appendChild(row);
+        });
         panel.classList.add('picsim__errors--visible');
         this.updateLineNumbers();
     }
