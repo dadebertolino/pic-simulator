@@ -444,8 +444,11 @@ class PIC16F84A {
 
     // === STATUS FLAGS ===
     
-    setZ(value) {
-        if (value === 0) {
+    // Riceve l'esito del confronto (setZ(result === 0)), come setC e setDC:
+    // un tempo confrontava l'argomento con 0, quindi true lo azzerava e Z
+    // non veniva mai impostato.
+    setZ(isZero) {
+        if (isZero) {
             this.ram[0x03] |= 0x04;
         } else {
             this.ram[0x03] &= ~0x04;
