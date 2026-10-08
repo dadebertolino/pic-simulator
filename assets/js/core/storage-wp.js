@@ -88,11 +88,11 @@ class PICStorageWP {
                 <div class="pic-project-item">
                     <div class="pic-project-info">
                         <span class="pic-project-name">${this.escapeHtml(p.name)}</span>
-                        <span class="pic-project-meta">${p.device} â€¢ ${this.formatDate(p.modified)}</span>
+                        <span class="pic-project-meta">${p.device} • ${this.formatDate(p.modified)}</span>
                     </div>
                     <div class="pic-project-actions">
                         <button class="pic-btn pic-btn-small" onclick="picSimStorage.loadProject('${this.escapeHtml(p.name)}')">Load</button>
-                        <button class="pic-btn pic-btn-small pic-btn-danger" onclick="picSimStorage.deleteProject('${this.escapeHtml(p.name)}')">Ã—</button>
+                        <button class="pic-btn pic-btn-small pic-btn-danger" onclick="picSimStorage.deleteProject('${this.escapeHtml(p.name)}')">×</button>
                     </div>
                 </div>
             `).join('');

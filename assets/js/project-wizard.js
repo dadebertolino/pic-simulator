@@ -38,7 +38,7 @@ PicSim.ProjectWizard = (function() {
         },
         'PIC16F628A': {
             name: 'PIC16F628A',
-            description: 'Versione potenziata con piÃ¹ memoria e periferiche',
+            description: 'Versione potenziata con più memoria e periferiche',
             flash: '2K x 14 words',
             ram: '224 bytes',
             eeprom: '128 bytes',
@@ -260,7 +260,7 @@ PicSim.ProjectWizard = (function() {
         container.innerHTML = `
             <div class="picsim-wizard-step-content">
                 <h3>Seleziona il microcontrollore</h3>
-                <p class="picsim-wizard-hint">Scegli il dispositivo PIC per il tuo progetto. Non potrÃ  essere modificato dopo.</p>
+                <p class="picsim-wizard-hint">Scegli il dispositivo PIC per il tuo progetto. Non potrà essere modificato dopo.</p>
                 
                 <div class="picsim-device-grid">
                     ${Object.entries(devices).map(([id, dev]) => `
@@ -439,7 +439,7 @@ PicSim.ProjectWizard = (function() {
                     return false;
                 }
                 if (projectData.name.length > 100) {
-                    showStepError('Il nome non puÃ² superare 100 caratteri');
+                    showStepError('Il nome non può superare 100 caratteri');
                     return false;
                 }
                 break;

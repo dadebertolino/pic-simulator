@@ -101,7 +101,7 @@ class DB_Manager {
         
         $project_id = $this->db->insert_id;
         
-        // Log attivitÃ 
+        // Log attività
         $this->log_activity($data['user_id'], $project_id, 'project_create');
         
         return $project_id;
@@ -273,7 +273,7 @@ class DB_Manager {
     }
 
     /**
-     * Verifica se utente puÃ² accedere al progetto
+     * Verifica se utente può accedere al progetto
      */
     public function user_can_access_project($user_id, $project_id) {
         $project = $this->get_project($project_id);
@@ -282,12 +282,12 @@ class DB_Manager {
             return false;
         }
         
-        // Owner puÃ² sempre accedere
+        // Owner può sempre accedere
         if ($project->user_id == $user_id) {
             return true;
         }
         
-        // Docente puÃ² vedere progetti della sua classe
+        // Docente può vedere progetti della sua classe
         if ($project->class_id) {
             $class = $this->get_class($project->class_id);
             if ($class && $class->teacher_id == $user_id) {
@@ -299,7 +299,7 @@ class DB_Manager {
     }
 
     /**
-     * Verifica se utente puÃ² modificare il progetto
+     * Verifica se utente può modificare il progetto
      */
     public function user_can_edit_project($user_id, $project_id) {
         $project = $this->get_project($project_id);
@@ -308,12 +308,12 @@ class DB_Manager {
             return false;
         }
         
-        // Progetto bloccato: nessuno puÃ² modificare
+        // Progetto bloccato: nessuno può modificare
         if ($project->locked) {
             return false;
         }
         
-        // Solo owner puÃ² modificare
+        // Solo owner può modificare
         return $project->user_id == $user_id;
     }
 
@@ -491,10 +491,10 @@ class DB_Manager {
     public function rename_file($project_id, $old_filename, $new_filename) {
         $new_filename = sanitize_file_name($new_filename);
         
-        // Verifica che il nuovo nome non esista giÃ 
+        // Verifica che il nuovo nome non esista già
         $existing = $this->get_file($project_id, $new_filename);
         if ($existing) {
-            return new \WP_Error('file_exists', 'Un file con questo nome esiste giÃ ');
+            return new \WP_Error('file_exists', 'Un file con questo nome esiste già');
         }
         
         $result = $this->db->update(
@@ -625,7 +625,7 @@ class DB_Manager {
     }
 
     /**
-     * Cerca classe per codice (alias per compatibilitÃ )
+     * Cerca classe per codice (alias per compatibilità)
      */
     public function get_class_by_code($code) {
         return $this->db->get_row(
@@ -709,7 +709,7 @@ class DB_Manager {
      * Aggiunge studente a classe
      */
     public function add_student_to_class($class_id, $student_id) {
-        // Verifica se giÃ  iscritto
+        // Verifica se già iscritto
         $existing = $this->db->get_var(
             $this->db->prepare(
                 "SELECT id FROM {$this->class_students} 
@@ -797,7 +797,7 @@ class DB_Manager {
     }
 
     /**
-     * Verifica se studente Ã¨ in classe
+     * Verifica se studente è in classe
      */
     public function is_student_in_class($class_id, $student_id) {
         return (bool) $this->db->get_var(
@@ -986,7 +986,7 @@ class DB_Manager {
     // =========================================================================
 
     /**
-     * Registra attivitÃ 
+     * Registra attività
      */
     public function log_activity($user_id, $project_id, $action, $details = null) {
         return $this->db->insert(
@@ -1028,7 +1028,7 @@ class DB_Manager {
     }
 
     /**
-     * Ottiene log attivitÃ  per progetto
+     * Ottiene log attività per progetto
      */
     public function get_project_activity($project_id, $limit = 50) {
         return $this->db->get_results(

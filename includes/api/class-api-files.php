@@ -197,7 +197,7 @@ class API_Files {
         if ($file->is_readonly) {
             return new \WP_Error(
                 'rest_forbidden',
-                __('Questo file Ã¨ in sola lettura.', 'webpicsimulator'),
+                __('Questo file è in sola lettura.', 'webpicsimulator'),
                 ['status' => 403]
             );
         }
@@ -307,7 +307,7 @@ class API_Files {
         if ($existing) {
             return new \WP_Error(
                 'rest_file_exists',
-                __('Un file con questo nome esiste giÃ .', 'webpicsimulator'),
+                __('Un file con questo nome esiste già.', 'webpicsimulator'),
                 ['status' => 409]
             );
         }
@@ -402,7 +402,7 @@ class API_Files {
             );
         }
 
-        // Log attivitÃ 
+        // Log attività
         $this->db->log_activity(
             get_current_user_id(),
             $project_id,
@@ -436,7 +436,7 @@ class API_Files {
             );
         }
 
-        // Log attivitÃ 
+        // Log attività
         $this->db->log_activity(
             get_current_user_id(),
             $project_id,
@@ -504,7 +504,7 @@ class API_Files {
             );
         }
 
-        // Log attivitÃ 
+        // Log attività
         $this->db->log_activity(
             get_current_user_id(),
             $project_id,
@@ -559,7 +559,7 @@ class API_Files {
             ['id' => $file->id]
         );
 
-        // Log attivitÃ 
+        // Log attività
         $this->db->log_activity(
             get_current_user_id(),
             $project_id,

@@ -68,7 +68,7 @@ class PIC_Simulator_Plugin {
         // REST API
         add_action('rest_api_init', [$this, 'register_rest_routes']);
         
-        // Legacy AJAX handlers (manteniamo per compatibilitÃ )
+        // Legacy AJAX handlers (manteniamo per compatibilità)
         add_action('wp_ajax_pic_sim_save', [$this, 'ajax_save_project']);
         add_action('wp_ajax_pic_sim_load', [$this, 'ajax_load_project']);
         add_action('wp_ajax_pic_sim_list', [$this, 'ajax_list_projects']);
@@ -630,7 +630,7 @@ class PIC_Simulator_Plugin {
             echo '<ul>';
             foreach ($tables as $table) {
                 $exists = $wpdb->get_var("SHOW TABLES LIKE '$table'") === $table;
-                $status = $exists ? 'âœ…' : 'âŒ';
+                $status = $exists ? '✅' : '❌';
                 $count = $exists ? $wpdb->get_var("SELECT COUNT(*) FROM $table") : '-';
                 echo "<li>{$status} <code>{$table}</code> - {$count} record</li>";
             }
@@ -666,7 +666,7 @@ class PIC_Simulator_Plugin {
                 $current_user = wp_get_current_user();
                 $is_teacher = current_user_can('picsim_manage_classes');
                 echo 'Utente corrente: <strong>' . esc_html($current_user->display_name) . '</strong> - ';
-                echo $is_teacher ? 'âœ… Docente' : 'ðŸ‘¤ Studente';
+                echo $is_teacher ? '✅ Docente' : '👤 Studente';
                 ?>
             </p>
         </div>
@@ -796,14 +796,14 @@ function picsim_db() {
 }
 
 /**
- * Verifica se utente puÃ² gestire classi
+ * Verifica se utente può gestire classi
  */
 function picsim_can_manage_classes() {
     return current_user_can('picsim_manage_classes');
 }
 
 /**
- * Verifica se utente puÃ² valutare submissions
+ * Verifica se utente può valutare submissions
  */
 function picsim_can_grade() {
     return current_user_can('picsim_grade_submissions');

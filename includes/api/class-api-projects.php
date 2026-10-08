@@ -212,12 +212,12 @@ class API_Projects {
             );
         }
 
-        // Owner puÃ² sbloccare
+        // Owner può sbloccare
         if ($project->user_id == $user_id) {
             return true;
         }
 
-        // Docente puÃ² sbloccare progetti della sua classe
+        // Docente può sbloccare progetti della sua classe
         if ($project->class_id) {
             $class = $this->db->get_class($project->class_id);
             if ($class && $class->teacher_id == $user_id) {
@@ -401,7 +401,7 @@ class API_Projects {
         if ($project->type === 'submission' && $project->status === 'submitted') {
             return new \WP_Error(
                 'rest_cannot_delete',
-                __('Non puoi eliminare una consegna giÃ  effettuata.', 'webpicsimulator'),
+                __('Non puoi eliminare una consegna già effettuata.', 'webpicsimulator'),
                 ['status' => 403]
             );
         }
@@ -504,11 +504,11 @@ class API_Projects {
             );
         }
 
-        // Verifica che non sia giÃ  consegnato
+        // Verifica che non sia già consegnato
         if ($project->status === 'submitted' || $project->status === 'graded') {
             return new \WP_Error(
                 'rest_already_submitted',
-                __('Progetto giÃ  consegnato.', 'webpicsimulator'),
+                __('Progetto già consegnato.', 'webpicsimulator'),
                 ['status' => 400]
             );
         }

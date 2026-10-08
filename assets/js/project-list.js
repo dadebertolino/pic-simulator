@@ -57,7 +57,7 @@ PicSim.ProjectList = (function() {
                     
                     <div class="picsim-toolbar-right">
                         <select id="picsim-sort" class="picsim-select">
-                            <option value="updated_at:DESC">PiÃ¹ recenti</option>
+                            <option value="updated_at:DESC">Più recenti</option>
                             <option value="updated_at:ASC">Meno recenti</option>
                             <option value="name:ASC">Nome A-Z</option>
                             <option value="name:DESC">Nome Z-A</option>
@@ -393,7 +393,7 @@ PicSim.ProjectList = (function() {
 
             case 'delete':
                 const confirmed = await PicSim.Dashboard.confirm(
-                    `Eliminare il progetto "${project.name}"? Questa azione non puÃ² essere annullata.`,
+                    `Eliminare il progetto "${project.name}"? Questa azione non può essere annullata.`,
                     { title: 'Elimina progetto', confirmText: 'Elimina', cancelText: 'Annulla' }
                 );
                 if (confirmed) {

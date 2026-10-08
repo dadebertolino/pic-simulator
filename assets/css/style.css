@@ -18,7 +18,7 @@
     --pic-accent-dim: #0ea5e9;
     --pic-accent-glow: rgba(56, 189, 248, 0.25);
     
-    /* Feedback colors - piÃ¹ saturi e allegri */
+    /* Feedback colors - più saturi e allegri */
     --pic-success: #4ade80;
     --pic-warning: #fbbf24;
     --pic-error: #f87171;
@@ -3416,7 +3416,7 @@
 }
 
 .pic-sim-container .line-num.current::before {
-    content: 'Ã¢â€ â€™';
+    content: '→';
     margin-right: 2px;
     font-size: 9px;
 }

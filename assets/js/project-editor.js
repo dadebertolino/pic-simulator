@@ -105,7 +105,7 @@ PicSim.ProjectEditor = (function() {
                         <div class="picsim-statusbar">
                             <div class="picsim-statusbar-left">
                                 <span id="status-file">-</span>
-                                <span id="status-modified" class="hidden">â€¢ Modificato</span>
+                                <span id="status-modified" class="hidden">• Modificato</span>
                             </div>
                             <div class="picsim-statusbar-right">
                                 <span id="status-cursor">Ln 1, Col 1</span>
@@ -121,7 +121,7 @@ PicSim.ProjectEditor = (function() {
                             <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
                         </svg>
                         <h3>Progetto bloccato</h3>
-                        <p>Questo progetto Ã¨ in sola lettura</p>
+                        <p>Questo progetto è in sola lettura</p>
                     </div>
                 </div>
             </div>
@@ -239,7 +239,7 @@ PicSim.ProjectEditor = (function() {
                 </svg>
                 <span class="picsim-file-name">${escapeHtml(file.filename)}</span>
                 ${file.is_main ? '<span class="picsim-file-badge main">main</span>' : ''}
-                ${unsavedChanges.has(file.id) ? '<span class="picsim-file-badge modified">â€¢</span>' : ''}
+                ${unsavedChanges.has(file.id) ? '<span class="picsim-file-badge modified">•</span>' : ''}
                 ${!file.is_main && !file.is_readonly && !project.locked ? `
                     <button class="picsim-file-menu" data-file-id="${file.id}">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -311,8 +311,8 @@ PicSim.ProjectEditor = (function() {
         tabsContainer.innerHTML = openTabs.map(file => `
             <div class="picsim-tab ${activeFile?.id === file.id ? 'active' : ''}" data-file-id="${file.id}">
                 <span>${escapeHtml(file.filename)}</span>
-                ${unsavedChanges.has(file.id) ? '<span class="picsim-tab-modified">â€¢</span>' : ''}
-                <button class="picsim-tab-close" title="Chiudi">Ã—</button>
+                ${unsavedChanges.has(file.id) ? '<span class="picsim-tab-modified">•</span>' : ''}
+                <button class="picsim-tab-close" title="Chiudi">×</button>
             </div>
         `).join('');
 
@@ -371,7 +371,7 @@ PicSim.ProjectEditor = (function() {
         }
 
         if (files.find(f => f.filename.toLowerCase() === filename.toLowerCase())) {
-            PicSim.Dashboard.toast('File giÃ  esistente', 'error');
+            PicSim.Dashboard.toast('File già esistente', 'error');
             return;
         }
 

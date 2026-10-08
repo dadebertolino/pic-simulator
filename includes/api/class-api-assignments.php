@@ -504,7 +504,7 @@ class API_Assignments {
 
         $assignment = $this->db->get_assignment($assignment_id);
 
-        // Non modificare se giÃ  pubblicata (solo alcuni campi)
+        // Non modificare se già pubblicata (solo alcuni campi)
         $update_data = [];
 
         if ($assignment->status === 'draft') {
@@ -597,7 +597,7 @@ class API_Assignments {
         if ($assignment->status !== 'draft') {
             return new \WP_Error(
                 'rest_already_published',
-                __('L\'assegnazione Ã¨ giÃ  stata pubblicata.', 'webpicsimulator'),
+                __('L\'assegnazione è già stata pubblicata.', 'webpicsimulator'),
                 ['status' => 400]
             );
         }
@@ -641,7 +641,7 @@ class API_Assignments {
         if ($assignment->status === 'closed') {
             return new \WP_Error(
                 'rest_already_closed',
-                __('L\'assegnazione Ã¨ giÃ  chiusa.', 'webpicsimulator'),
+                __('L\'assegnazione è già chiusa.', 'webpicsimulator'),
                 ['status' => 400]
             );
         }
@@ -715,18 +715,18 @@ class API_Assignments {
         if ($assignment->status !== 'published') {
             return new \WP_Error(
                 'rest_not_available',
-                __('Questa assegnazione non Ã¨ disponibile.', 'webpicsimulator'),
+                __('Questa assegnazione non è disponibile.', 'webpicsimulator'),
                 ['status' => 400]
             );
         }
 
-        // Verifica se giÃ  iniziata
+        // Verifica se già iniziata
         $existing = $this->db->get_student_submission($assignment_id, $user_id);
         if ($existing) {
             return rest_ensure_response([
                 'started'    => false,
                 'project_id' => (int) $existing->id,
-                'message'    => __('Hai giÃ  iniziato questa assegnazione.', 'webpicsimulator')
+                'message'    => __('Hai già iniziato questa assegnazione.', 'webpicsimulator')
             ]);
         }
 
@@ -918,7 +918,7 @@ class API_Assignments {
 
         return rest_ensure_response([
             'unlocked' => true,
-            'message'  => __('Consegna sbloccata. Lo studente puÃ² modificarla.', 'webpicsimulator')
+            'message'  => __('Consegna sbloccata. Lo studente può modificarla.', 'webpicsimulator')
         ]);
     }
 

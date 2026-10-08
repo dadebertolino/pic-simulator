@@ -62,7 +62,7 @@ class Activator {
         // Tabella assegnazioni
         self::create_assignments_table($charset_collate);
         
-        // Tabella log attivitÃ 
+        // Tabella log attività
         self::create_activity_log_table($charset_collate);
     }
 
@@ -263,7 +263,7 @@ class Activator {
     /**
      * Tabella: picsim_activity_log
      * 
-     * Log attivitÃ  per audit e statistiche
+     * Log attività per audit e statistiche
      */
     private static function create_activity_log_table($charset_collate) {
         global $wpdb;

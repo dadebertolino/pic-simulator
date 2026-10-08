@@ -351,7 +351,7 @@ class API_Classes {
 
         $data = [];
 
-        // Se puÃ² gestire classi, mostra le sue classi come docente
+        // Se può gestire classi, mostra le sue classi come docente
         if (current_user_can('picsim_manage_classes') && $role !== 'student') {
             $teacher_classes = $this->db->get_teacher_classes($user_id, [
                 'is_active' => $request->get_param('active_only') !== false
@@ -367,7 +367,7 @@ class API_Classes {
             $student_classes = $this->db->get_student_classes($user_id);
             
             foreach ($student_classes as $class) {
-                // Evita duplicati se Ã¨ sia docente che studente
+                // Evita duplicati se è sia docente che studente
                 $exists = array_filter($data, function($c) use ($class) {
                     return $c['id'] === (int) $class->id;
                 });
@@ -528,21 +528,21 @@ class API_Classes {
         if (!$class->is_active) {
             return new \WP_Error(
                 'rest_class_archived',
-                __('Questa classe Ã¨ archiviata.', 'webpicsimulator'),
+                __('Questa classe è archiviata.', 'webpicsimulator'),
                 ['status' => 403]
             );
         }
 
-        // Verifica se giÃ  iscritto
+        // Verifica se già iscritto
         if ($this->db->is_student_in_class($class->id, $user_id)) {
             return new \WP_Error(
                 'rest_already_enrolled',
-                __('Sei giÃ  iscritto a questa classe.', 'webpicsimulator'),
+                __('Sei già iscritto a questa classe.', 'webpicsimulator'),
                 ['status' => 400]
             );
         }
 
-        // Non puÃ² iscriversi alla propria classe
+        // Non può iscriversi alla propria classe
         if ($class->teacher_id == $user_id) {
             return new \WP_Error(
                 'rest_is_teacher',
@@ -615,7 +615,7 @@ class API_Classes {
 
         $class = $this->db->get_class($class_id);
 
-        // Non puÃ² aggiungere se stesso (docente)
+        // Non può aggiungere se stesso (docente)
         if ($class->teacher_id == $user->ID) {
             return new \WP_Error(
                 'rest_is_teacher',
@@ -624,11 +624,11 @@ class API_Classes {
             );
         }
 
-        // Verifica se giÃ  iscritto
+        // Verifica se già iscritto
         if ($this->db->is_student_in_class($class_id, $user->ID)) {
             return new \WP_Error(
                 'rest_already_enrolled',
-                __('Lo studente Ã¨ giÃ  iscritto.', 'webpicsimulator'),
+                __('Lo studente è già iscritto.', 'webpicsimulator'),
                 ['status' => 400]
             );
         }

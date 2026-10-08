@@ -525,7 +525,7 @@ PicSim.AssignmentManager = (function() {
     }
 
     async function closeAssignment() {
-        const confirmed = await PicSim.Dashboard.confirm('Chiudere l\'assegnazione? Non saranno piÃ¹ accettate consegne.');
+        const confirmed = await PicSim.Dashboard.confirm('Chiudere l\'assegnazione? Non saranno più accettate consegne.');
         if (!confirmed) return;
 
         try {

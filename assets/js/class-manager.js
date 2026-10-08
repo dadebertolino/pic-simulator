@@ -576,7 +576,7 @@ PicSim.ClassManager = (function() {
     }
 
     async function regenerateCode() {
-        const confirmed = await PicSim.Dashboard.confirm('Rigenerare il codice? Il vecchio codice non sarÃ  piÃ¹ valido.');
+        const confirmed = await PicSim.Dashboard.confirm('Rigenerare il codice? Il vecchio codice non sarà più valido.');
         if (!confirmed) return;
         
         try {
