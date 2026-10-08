@@ -44,7 +44,9 @@ function fakeFetch(url) {
 
 function createContext() {
     const ctx = {
-        console, performance, setTimeout, clearTimeout, setInterval, clearInterval,
+        // I messaggi informativi di DeviceLoader sporcherebbero l'output dei test.
+        console: Object.assign(Object.create(console), { log() {} }),
+        performance, setTimeout, clearTimeout, setInterval, clearInterval,
         fetch: fakeFetch,
         picSimConfig: { dataPath: '' },
     };
@@ -98,12 +100,25 @@ async function assemble(source, deviceId = 'PIC16F84A') {
     return result;
 }
 
+/** CPU del device con le periferiche della factory, senza programma. */
+async function newCpu(deviceId = 'PIC16F84A') {
+    const loader = await deviceLoader();
+    return new ctx.PIC16Factory(loader).create(deviceId).cpu;
+}
+
 /** CPU del device, con le periferiche della factory e il programma caricato. */
 async function cpuWith(source, deviceId = 'PIC16F84A') {
-    const loader = await deviceLoader();
-    const { cpu } = new ctx.PIC16Factory(loader).create(deviceId);
+    const cpu = await newCpu(deviceId);
     cpu.loadProgram((await assemble(source, deviceId)).programMemory);
     return cpu;
+}
+
+/**
+ * Livelli letti sui pin di una porta (latch sulle uscite, esterno sugli
+ * ingressi), indipendenti dal banco selezionato.
+ */
+function pins(cpu, port) {
+    return cpu.getPeripheral('GPIO_' + port)._readPort();
 }
 
 /** Simulator completo (CPU + assemblatore) per un device. */
@@ -128,4 +143,4 @@ function hexWords(words) {
     return Array.from(words).map((w) => w.toString(16).toUpperCase().padStart(4, '0')).join(' ');
 }
 
-module.exports = { root, ctx, deviceLoader, assemblerFor, assemble, cpuWith, simulatorFor, steps, examples, hexWords };
+module.exports = { root, ctx, deviceLoader, assemblerFor, assemble, newCpu, cpuWith, pins, simulatorFor, steps, examples, hexWords };
