@@ -1,0 +1,19 @@
+{
+	"name": "pic-simulator-tests",
+	"private": true,
+	"description": "Test di WebPicSimulator: unit (node:test) ed E2E (wp-env + Playwright).",
+	"scripts": {
+		"test": "node --test \"tests/unit/*.test.js\"",
+		"check-js": "node bin/check-js.js",
+		"env:start": "wp-env start",
+		"env:stop": "wp-env stop",
+		"env:setup": "bash bin/setup-e2e.sh",
+		"env:playground": "npx --yes @wp-playground/cli@latest server --port=8888 --site-url=http://localhost:8888 --php=8.1 --mount=.:/wordpress/wp-content/plugins/pic-simulator --blueprint=tests/fixtures/playground-blueprint.json",
+		"test:e2e": "playwright test",
+		"test:e2e:headed": "playwright test --headed"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.55.0",
+		"@wordpress/env": "^10.0.0"
+	}
+}

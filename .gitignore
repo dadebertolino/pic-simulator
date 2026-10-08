@@ -4,3 +4,9 @@
 composer.lock
 *.zip
 .phpcs.cache
+
+# E2E (wp-env + Playwright)
+playwright-report/
+test-results/
+tests/e2e/.auth/
+.DS_Store

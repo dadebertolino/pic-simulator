@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # Lo ZIP si pubblica solo se il codice passa gli stessi controlli della CI.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  build-release:
+    name: "Build ZIP e pubblica Release"
+    needs: [ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # L'updater ricava la versione dal tag: se non coincide con quella del plugin,
+      # WordPress continuerebbe a proporre l'aggiornamento anche dopo averlo installato
+      - name: Verifica coerenza versione tag / plugin / readme.txt
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          HEADER=$(grep -oP '^\s*\*\s*Version:\s*\K[0-9.]+' pic-simulator.php)
+          CONST=$(grep -oP "define\('PICSIM_VERSION',\s*'\K[0-9.]+" pic-simulator.php)
+          STABLE=$(grep -oP '^Stable tag:\s*\K[0-9.]+' readme.txt)
+          echo "tag=$TAG header=$HEADER const=$CONST stable=$STABLE"
+          if [ "$TAG" != "$HEADER" ] || [ "$TAG" != "$CONST" ] || [ "$TAG" != "$STABLE" ]; then
+            echo "::error::La versione del tag ($TAG) non coincide con quella del plugin (header: $HEADER, PICSIM_VERSION: $CONST, Stable tag: $STABLE)."
+            exit 1
+          fi
+
+      - name: Verifica voce di changelog
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          if ! grep -q "^= $TAG =\$" readme.txt; then
+            echo "::error::Nel readme.txt manca la voce di changelog '= $TAG ='."
+            exit 1
+          fi
+
+      # git archive rispetta gli export-ignore di .gitattributes e crea la cartella
+      # radice 'pic-simulator/', quella che WordPress si aspetta (lo zipball di
+      # GitHub avrebbe 'dadebertolino-pic-simulator-<hash>/')
+      - name: Build ZIP
+        run: |
+          echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          git archive --format=zip --prefix=pic-simulator/ \
+            -o "pic-simulator-${GITHUB_REF_NAME#v}.zip" "$GITHUB_REF_NAME"
+          unzip -l "pic-simulator-${GITHUB_REF_NAME#v}.zip"
+
+      # Lo ZIP deve contenere il plugin e niente di sviluppo
+      - name: Verifica contenuto ZIP
+        run: |
+          ZIP="pic-simulator-${VERSION}.zip"
+          for f in pic-simulator.php readme.txt uninstall.php inc/class-updater.php \
+                   assets/js/pic16f84a.js assets/js/assembler.js assets/js/simulator.js assets/js/ui.js \
+                   assets/css/style.css templates/simulator.php examples/01_blink_led.asm; do
+            unzip -l "$ZIP" "pic-simulator/$f" > /dev/null || { echo "::error::Manca $f nello ZIP"; exit 1; }
+          done
+          if unzip -l "$ZIP" | grep -E 'pic-simulator/(tests|bin|\.github|node_modules|vendor)/|package(-lock)?\.json|playwright\.config|\.wp-env\.json|composer\.json|phpcs\.xml'; then
+            echo "::error::Lo ZIP contiene file di sviluppo: aggiungerli a .gitattributes (export-ignore)"
+            exit 1
+          fi
+
+      # Descrizione della release: la voce del changelog del readme.txt
+      - name: Note di rilascio
+        run: |
+          awk -v v="$VERSION" '$0=="= "v" ="{p=1; next} p&&/^= [0-9]/{exit} p' readme.txt > release-notes.md
+          cat release-notes.md
+
+      - name: Crea/aggiorna Release con lo ZIP
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "WebPicSimulator ${{ env.VERSION }}"
+          files: pic-simulator-*.zip
+          body_path: release-notes.md

@@ -19,7 +19,7 @@ Nato per l'uso didattico negli istituti tecnici, gira interamente lato client: n
 = Funzionalita = 
 
 * Core PIC16F84A completo: CPU, RAM, EEPROM, stack a 8 livelli, Timer0 con prescaler, interrupt
-* Assembler a due passate con etichette, direttive (ORG, EQU, CBLOCK, DT, DW) e segnalazione errori riga per riga
+* Assembler a due passate compatibile con la sintassi MPASM: etichette, direttive, #define, espressioni e segnalazione errori riga per riga
 * Editor integrato con numeri di riga, indirizzi e breakpoint cliccabili
 * Esecuzione Run, Step, Step Over, Animate e Reset, con velocita' regolabile
 * Pannelli: Registri, bit di STATUS, Stack, Memoria (RAM/Programma/EEPROM), PORTA/PORTB, TMR0
@@ -51,7 +51,7 @@ Solo per caricare la pagina. La simulazione, l'assemblaggio e il caricamento deg
 
 = Quali direttive Assembly sono supportate? =
 
-ORG, EQU, CBLOCK/ENDC, DW, DT, DE, DATA, RES. LIST, PROCESSOR, __CONFIG, RADIX e END vengono accettate e ignorate.
+ORG, EQU, SET, CBLOCK/ENDC, DW, DT, DE, DATA, RES, BANKSEL, RADIX, END e #define. Gli operandi accettano espressioni con HIGH, LOW e $. LIST, PROCESSOR, __CONFIG, ERRORLEVEL e INCLUDE vengono accettate e ignorate.
 
 == Changelog ==
 

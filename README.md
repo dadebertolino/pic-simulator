@@ -33,9 +33,13 @@ Tutto avviene lato client: nessun dato lascia il browser, nessuna chiamata a ser
 
 ### Assemblatore
 - Due passate con risoluzione delle etichette in avanti
-- Direttive ORG, EQU, CBLOCK/ENDC, DW, DT, DE, DATA, RES
-- Letterali esadecimali, binari, ottali, decimali e carattere in tutte le notazioni MPASM
-- Errori riportati riga per riga, evidenziati nell'editor
+- Etichette con i due punti (`LOOP:`) o in colonna 1 senza (`LOOP`), come in MPASM
+- Direttive ORG, EQU, SET, CBLOCK/ENDC (anche `A, B, BUF:4`), DW, DT (anche stringhe), DE, DATA, RES, BANKSEL, RADIX, END
+- `#define` come sostituzione testuale, anche per coppie registro/bit (`#define LED PORTB,0`)
+- Espressioni negli operandi e nelle direttive: `+ - * / << >> & | ^ ~`, parentesi, `HIGH`/`LOW` e `$` (indirizzo corrente)
+- Letterali esadecimali, binari, ottali, decimali e carattere in tutte le notazioni MPASM; radice predefinita decimale
+- `DE` a partire da `ORG 0x2100` precarica la EEPROM
+- Errori riportati riga per riga, evidenziati nell'editor: simboli non definiti, numeri malformati e valori fuori intervallo (letterali, bit, indirizzi, memoria programma) non vengono mai convertiti in silenzio
 - Disassemblatore, usato nella vista Programma
 
 ### Debugger
@@ -114,8 +118,11 @@ pic-simulator/
 │   ├── simulator.php        # Template HTML del simulatore
 │   └── admin/
 │       └── settings.php     # Pagina informazioni
-└── examples/                # 10 programmi Assembly didattici
+├── examples/                # 10 programmi Assembly didattici
+└── tests/                   # Unit (node:test) ed E2E (Playwright), esclusi dallo ZIP
 ```
+
+Test, CI e rilascio sono descritti in [TESTING.md](TESTING.md).
 
 ---
 
@@ -149,7 +156,7 @@ Questo è un simulatore didattico:
 - Il watchdog timer è dichiarato ma non implementato
 - I tempi di ciclo sono approssimati: non c'è simulazione al quarto di ciclo
 - Alcuni dettagli di temporizzazione sono semplificati (scrittura EEPROM istantanea, inibizione di TMR0 dopo la scrittura)
-- L'assemblatore non valuta espressioni nelle direttive EQU
+- L'assemblatore non supporta macro, `#include` di file e compilazione condizionale (`#ifdef`); `PAGESEL` non serve sul 16F84A e non è riconosciuto
 - L'export Intel HEX esiste nel codice (`Simulator.exportHex()`) ma non è ancora collegato a un comando dell'interfaccia
 
 ---
