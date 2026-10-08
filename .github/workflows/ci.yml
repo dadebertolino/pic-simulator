@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  # Solo branch: sui tag la CI la lancia release.yml prima di pubblicare lo ZIP.
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_call:
+
+# Un nuovo push sullo stesso ref annulla la run precedente
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # php -l su ogni versione di PHP supportata: il plugin dichiara 7.4+.
+  # La logica sta quasi tutta in JavaScript; il PHP (shortcode, pagina admin,
+  # updater) e' coperto dagli E2E su WordPress vero.
+  php:
+    name: "PHP ${{ matrix.php }}: sintassi"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["7.4", "8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: php -l
+        run: |
+          errors=0
+          while IFS= read -r file; do
+            php -l "$file" > /dev/null || errors=1
+          done < <(find . -name '*.php' -not -path './.git/*' -not -path './vendor/*' -not -path './node_modules/*')
+          exit $errors
+
+  phpcs:
+    name: "PHPCS (WordPress + PHPCompatibility 7.4+)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run PHPCS
+        run: ./vendor/bin/phpcs --standard=phpcs.xml.dist --report=full
+
+  # CPU, assemblatore e motore del simulatore: test con node:test, senza
+  # dipendenze npm. Comprende la verifica del comportamento dei 10 esempi.
+  javascript:
+    name: "JavaScript: sintassi e unit test"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: node --check (file e script inline)
+        run: node bin/check-js.js
+
+      - name: Unit test (node:test)
+        run: npm test
+
+  # E2E: wp-env + Playwright (workflow riutilizzabile, vedi e2e.yml). Parte solo se
+  # sintassi, test e PHPCS passano: inutile avviare Docker con il codice rotto
+  e2e:
+    name: E2E (wp-env + Playwright)
+    needs: [php, phpcs, javascript]
+    uses: ./.github/workflows/e2e.yml

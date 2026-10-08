@@ -1,0 +1,38 @@
+name: Nightly
+
+# Controllo notturno contro cio' che cambia senza un nostro commit:
+#   - WordPress in sviluppo (trunk): avvisa prima che una nuova versione rompa il plugin;
+#   - PHP piu' recente negli E2E, che la CI normale esegue su 8.1.
+#
+# Un fallimento arriva via email a chi ha modificato per ultimo questo file
+# (notifiche standard di GitHub Actions per i workflow pianificati).
+# NB: GitHub sospende i workflow pianificati dopo 60 giorni senza attivita' nel repository.
+
+on:
+  schedule:
+    - cron: '37 4 * * *'   # 04:37 UTC, sfasato rispetto alle nightly degli altri plugin
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+
+  e2e:
+    name: E2E
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: wp-trunk
+            core: WordPress/WordPress#master
+            php: '8.3'
+          - label: php-8.4
+            core: ''
+            php: '8.4'
+    uses: ./.github/workflows/e2e.yml
+    with:
+      core: ${{ matrix.core }}
+      php: ${{ matrix.php }}
+      label: ${{ matrix.label }}

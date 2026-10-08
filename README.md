@@ -118,8 +118,11 @@ pic-simulator/
 │   ├── simulator.php        # Template HTML del simulatore
 │   └── admin/
 │       └── settings.php     # Pagina informazioni
-└── examples/                # 10 programmi Assembly didattici
+├── examples/                # 10 programmi Assembly didattici
+└── tests/                   # Unit (node:test) ed E2E (Playwright), esclusi dallo ZIP
 ```
+
+Test, CI e rilascio sono descritti in [TESTING.md](TESTING.md).
 
 ---
 
