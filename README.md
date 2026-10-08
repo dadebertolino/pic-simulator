@@ -3,7 +3,7 @@
 Simulatore del microcontrollore PIC16F84A nel browser: editor Assembly, assemblatore e debugger.  
 Niente MPLAB, niente programmatore, niente breadboard. Tutto nel tuo WordPress.
 
-**Versione:** 1.1.0
+**Versione:** 1.2.0
 **Autore:** [Davide Bertolino](https://www.davidebertolino.it)  
 **Licenza:** GPL v2 or later  
 **Richiede:** WordPress 5.8+, PHP 7.4+  
@@ -218,6 +218,43 @@ coincidono e se il README ha la voce `### X.Y.Z`; lo ZIP allegato contiene la ca
 ---
 
 ## Changelog
+
+### 1.2.0
+**CPU più fedele al chip reale, interfaccia per il telefono, accessibilità**
+
+Minor: chiude i difetti di fedeltà della CPU e quelli dell'interfaccia rimasti dopo la 1.1.0.
+
+**CPU:**
+- **Il Reset cancellava la EEPROM**, mentre sul chip resta: l'esempio 07 dichiarava che il contatore
+  sopravvive al reset e non succedeva. Ora EEPROM e memoria programma sopravvivono al Reset;
+  assemblare equivale a programmare il chip, quindi la EEPROM riparte cancellata (0xFF) più i dati `DE`
+- FSR tra 0x8C e 0xCF raggiungeva una zona separata invece dei GPR 0x0C–0x4F
+- Una scrittura tramite INDF saltava la logica dei registri speciali: scrivere PORTB via FSR non
+  aggiornava i pin, TRISB via FSR non funzionava
+- **TMR0 contava le istruzioni invece dei cicli**: GOTO, CALL e gli skip valgono 2 cicli anche per il
+  timer, e i conti di ritardo tornano col contatore dei cicli. Dopo una scrittura TMR0 resta fermo
+  due cicli, come nel datasheet; il salto al vettore di interrupt costa 2 cicli
+- SLEEP: Timer0 si ferma; il risveglio da INT, cambio su RB4–RB7 o fine scrittura EEPROM avviene
+  anche con GIE = 0, e con GIE = 1 il micro esegue l'istruzione dopo SLEEP prima della ISR
+- INTF e RBIF si alzano anche con l'interrupt disabilitato; le uscite RB4–RB7 non generano RBIF
+- Le locazioni non implementate (0x07, 0x50–0x7F) si leggono 0; la scrittura di PCL usa solo PCLATH<4:0>
+
+**Interfaccia:**
+- **Telefono**: l'editor spingeva fuori dallo schermo registri, porte e memoria; ora si dividono lo spazio
+- Stato, cicli, tempo simulato e istruzione corrente sono sempre visibili, non solo a schermo intero
+- **Step Over** esegue tutta la subroutine, anche un ritardo da centinaia di migliaia di cicli, senza
+  bloccare la pagina; prima si fermava dopo 10.000 cicli, dentro il ritardo
+- Durante Run il pulsante per rimuovere un breakpoint non rispondeva al click
+- Lo slider di Animate cambia ritmo anche mentre Animate gira
+- Export **Intel HEX** dalla toolbar; Save usa il nome del file o dell'esempio caricato; Step Over
+  anche nella mini-toolbar
+- Cmd su Mac funziona come Ctrl nelle scorciatoie
+- Messaggi di stato ed errori dell'assemblatore in italiano
+
+**Accessibilità (WCAG 2.1 AA):** contrasto del testo almeno 4,5:1, nome accessibile per tutti i
+controlli, messaggi di stato annunciati dagli screen reader; verificata con axe-core negli E2E.
+
+**Test:** 123 unit test e 53 E2E, axe compreso; nessun test `todo` rimasto.
 
 ### 1.1.0
 **Run in tempo reale, assemblatore compatibile con MPASM, test e CI**
