@@ -8,10 +8,12 @@ class PIC16Assembler {
         this.reset();
         this.initInstructions();
         this.initRegisters();
+        this.initDirectives();
     }
 
     reset() {
         this.programMemory = [];
+        this.eepromData = [];   // DE a 0x2100: contenuto iniziale della EEPROM
         this.labels = {};
         this.constants = {};
         this.variables = {};
@@ -22,6 +24,14 @@ class PIC16Assembler {
         this.listing = [];
         this.configWord = null;  // Configuration word (14-bit, indirizzo 0x2007)
         this.configAddr = 0x2007; // Standard per PIC16 mid-range
+        this.cblockAddress = undefined; // CBLOCK aperto (undefined = nessuno)
+        this.cblockNext = 0x0C;         // dove riparte un CBLOCK senza indirizzo
+        this.radix = 10;
+        this.overflowLine = null;
+        // Limiti del device: PIC16F84A finche' loadDeviceSymbols non dice altro.
+        if (!this.limits) {
+            this.limits = { programSize: 1024, eepromSize: 64, banks: 2 };
+        }
     }
 
     initRegisters() {
@@ -41,6 +51,12 @@ class PIC16Assembler {
             // INTCON bit names
             'RBIF': 0, 'INTF': 1, 'T0IF': 2, 'RBIE': 3, 'INTE': 4, 'T0IE': 5, 'EEIE': 6, 'GIE': 7,
             'PEIE': 6,
+            'NOT_PD': 3, 'NOT_TO': 4, 'TMR0IF': 2, 'TMR0IE': 5,
+            // OPTION_REG bit names (uguali su tutti i PIC16 mid-range)
+            'PS0': 0, 'PS1': 1, 'PS2': 2, 'PSA': 3, 'T0SE': 4, 'T0CS': 5, 'INTEDG': 6, 'RBPU': 7,
+            'NOT_RBPU': 7,
+            // EECON1 bit names (EEIF e' il bit 4 anche in PIR2 dei device piu' grandi)
+            'RD': 0, 'WR': 1, 'WREN': 2, 'WRERR': 3, 'EEIF': 4, 'EEPGD': 7,
             // Destination
             'W': 0, 'F': 1
         };
@@ -90,6 +106,14 @@ class PIC16Assembler {
     loadDeviceSymbols(deviceId, deviceData) {
         if (!deviceData || this._deviceId === deviceId) return;
         this._deviceId = deviceId;
+        
+        // Limiti usati dai controlli di intervallo e da BANKSEL.
+        var mem = deviceData.memory || {};
+        this.limits = {
+            programSize: (mem.program && mem.program.size) || 1024,
+            eepromSize: (mem.eeprom && mem.eeprom.size) || 0,
+            banks: (mem.ram && mem.ram.banks) || 2
+        };
         
         // Reset ai base, poi aggiungi device-specific
         this.initRegisters();
@@ -274,6 +298,16 @@ class PIC16Assembler {
         return result;
     }
 
+    initDirectives() {
+        // Servono a distinguere un'etichetta in colonna 1 senza due punti
+        // (stile MPASM) da una direttiva scritta senza rientro.
+        this.directives = new Set([
+            'ORG', 'EQU', 'SET', 'CBLOCK', 'ENDC', 'END', 'RADIX',
+            '#INCLUDE', 'INCLUDE', 'LIST', 'NOLIST', 'PROCESSOR', '__CONFIG', 'CONFIG', 'ERRORLEVEL',
+            'DW', 'DATA', 'DT', 'DE', 'RES', 'BANKSEL'
+        ]);
+    }
+
     initInstructions() {
         // Instruction encoding table
         this.instructions = {
@@ -324,433 +358,730 @@ class PIC16Assembler {
 
     assemble(source) {
         this.reset();
-        
-        const lines = source.split('\n');
-        
+
+        const lines = this.preprocess(source.split('\n'));
+
         // Pass 1: collect labels and calculate addresses
-        this.pass1(lines);
-        
+        this.runPass(lines, true);
+
+        if (this.cblockAddress !== undefined) {
+            // Senza ENDC ogni riga successiva verrebbe scambiata per una
+            // variabile e il programma risulterebbe vuoto senza spiegazione.
+            this.errors.push({ line: lines.length, message: 'CBLOCK senza ENDC' });
+            this.cblockAddress = undefined;
+        }
+
         if (this.errors.length > 0) {
             return this.getResult();
         }
-        
+
         // Pass 2: generate code
-        this.pass2(lines);
-        
+        this.runPass(lines, false);
+
         return this.getResult();
     }
 
-    pass1(lines) {
+    /**
+     * Le due passate leggono le righe allo stesso modo; la prima conta le
+     * parole e definisce le etichette, la seconda valuta gli operandi ed
+     * emette il codice. Tenerle in un unico ciclo evita che divergano: se
+     * la prima contasse una parola che la seconda non emette, tutte le
+     * etichette successive punterebbero all'istruzione sbagliata.
+     */
+    runPass(lines, isPass1) {
         this.currentAddress = 0;
-        
+        this.radix = 10;
+        this.cblockAddress = undefined;
+        this.cblockNext = 0x0C;
+
         for (let i = 0; i < lines.length; i++) {
             const lineNum = i + 1;
-            let line = this.preprocessLine(lines[i]);
-            
-            if (!line) continue;
-            
-            // Check for label
-            const labelMatch = line.match(/^(\w+):(.*)$/);
-            if (labelMatch) {
-                const label = labelMatch[1].toUpperCase();
+            const raw = lines[i];
+            if (!raw.trim()) continue;
+
+            if (this.cblockAddress !== undefined) {
+                this.processCblockLine(raw.trim(), lineNum, isPass1);
+                continue;
+            }
+
+            const { label, body } = this.splitLabel(raw);
+            if (label && isPass1) {
                 if (this.labels[label] !== undefined) {
-                    this.errors.push({ line: lineNum, message: `Duplicate label: ${label}` });
+                    this.errors.push({ line: lineNum, message: `Etichetta duplicata: ${label}` });
                 } else {
                     this.labels[label] = this.currentAddress;
                 }
-                line = labelMatch[2].trim();
-                if (!line) continue;
             }
-            
-            // Process directives
-            const directive = this.processDirective(line, lineNum, true);
-            if (directive.handled) {
-                if (directive.increment) {
-                    this.currentAddress += directive.increment;
-                }
-                continue;
-            }
-            
-            // Must be an instruction
-            const parts = this.parseLine(line);
-            if (parts && parts.mnemonic) {
-                const instr = this.instructions[parts.mnemonic];
-                if (instr) {
-                    this.currentAddress++;
-                } else {
-                    this.errors.push({ line: lineNum, message: `Unknown instruction: ${parts.mnemonic}` });
-                }
-            }
+            if (!body) continue;
+
+            const directive = this.processDirective(body, lineNum, isPass1);
+            if (directive.end) break;
+            if (directive.handled) continue;
+
+            this.processInstruction(body, lineNum, isPass1);
         }
     }
 
-    pass2(lines) {
-        this.currentAddress = 0;
-        
-        for (let i = 0; i < lines.length; i++) {
-            const lineNum = i + 1;
-            let line = this.preprocessLine(lines[i]);
-            
-            if (!line) continue;
-            
-            // Skip label definition
-            const labelMatch = line.match(/^(\w+):(.*)$/);
-            if (labelMatch) {
-                line = labelMatch[2].trim();
-                if (!line) continue;
+    // === PREPROCESSING ===
+
+    /**
+     * Toglie i commenti e risolve #define. In MPASM #define e' una
+     * sostituzione testuale, quindi "#define LED PORTB,0" seguito da
+     * "BSF LED" diventa "BSF PORTB,0". Le righe di definizione restano,
+     * vuote, perche' i numeri di riga degli errori non si spostino.
+     */
+    preprocess(lines) {
+        const defines = {};
+        return lines.map(raw => {
+            const line = this.stripComment(raw);
+
+            const def = line.match(/^\s*#define\s+([A-Za-z_]\w*)\s*(.*)$/i);
+            if (def) {
+                defines[def[1].toUpperCase()] = this.substituteDefines(def[2].trim(), defines);
+                return '';
             }
-            
-            // Process directives
-            const directive = this.processDirective(line, lineNum, false);
-            if (directive.handled) {
-                if (directive.words) {
-                    for (const word of directive.words) {
-                        this.emit(word, lineNum);
-                    }
-                }
-                if (directive.setAddress !== undefined) {
-                    this.currentAddress = directive.setAddress;
-                }
-                continue;
+
+            const undef = line.match(/^\s*#undefine\s+([A-Za-z_]\w*)\s*$/i);
+            if (undef) {
+                delete defines[undef[1].toUpperCase()];
+                return '';
             }
-            
-            // Assemble instruction
-            const parts = this.parseLine(line);
-            if (parts && parts.mnemonic) {
-                const word = this.assembleInstruction(parts, lineNum);
-                if (word !== null) {
-                    this.emit(word, lineNum);
-                }
-            }
-        }
+
+            return this.substituteDefines(line, defines);
+        });
     }
 
-    preprocessLine(line) {
-        // Remove comments
-        const semicolonIdx = line.indexOf(';');
-        if (semicolonIdx !== -1) {
-            line = line.substring(0, semicolonIdx);
-        }
-        return line.trim();
+    substituteDefines(line, defines) {
+        if (Object.keys(defines).length === 0) return line;
+        // Solo parole intere, e mai dentro i letterali tra apici.
+        return line.replace(/'[^']*'|"[^"]*"|\b[A-Za-z_]\w*\b/g, tok => {
+            const key = tok.toUpperCase();
+            return Object.prototype.hasOwnProperty.call(defines, key) ? defines[key] : tok;
+        });
     }
+
+    stripComment(line) {
+        // Un ';' tra apici (MOVLW ';') non apre un commento.
+        let quote = null;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (quote) {
+                if (ch === quote) quote = null;
+            } else if (ch === '"' || ch === '\'') {
+                quote = ch;
+            } else if (ch === ';') {
+                return line.substring(0, i);
+            }
+        }
+        return line;
+    }
+
+    /**
+     * Separa l'etichetta dal resto della riga. Accetta sia "LOOP:" sia lo
+     * stile MPASM con l'etichetta in colonna 1 senza due punti; in questo
+     * caso il nome non deve essere un'istruzione o una direttiva, e non
+     * deve introdurre un EQU/SET.
+     */
+    splitLabel(raw) {
+        const line = raw.replace(/\s+$/, '');
+
+        const colon = line.match(/^\s*([A-Za-z_]\w*):(.*)$/);
+        if (colon) {
+            return { label: colon[1].toUpperCase(), body: colon[2].trim() };
+        }
+
+        const col1 = line.match(/^([A-Za-z_]\w*)(?:\s+(.*))?$/);
+        if (col1) {
+            const name = col1[1].toUpperCase();
+            const rest = (col1[2] || '').trim();
+            const next = rest.split(/\s+/)[0].toUpperCase();
+            if (!this.instructions[name] && !this.directives.has(name) && next !== 'EQU' && next !== 'SET') {
+                return { label: name, body: rest };
+            }
+        }
+
+        return { label: null, body: line.trim() };
+    }
+
+    // === DIRECTIVES ===
 
     processDirective(line, lineNum, isPass1) {
-        const upper = line.toUpperCase();
-        const parts = line.split(/\s+/);
-        const directive = parts[0].toUpperCase();
-        
-        // ORG directive
-        if (directive === 'ORG') {
-            const addr = this.parseNumber(parts[1]);
-            if (addr === null) {
-                this.errors.push({ line: lineNum, message: 'Invalid ORG address' });
+        const [, first, restRaw] = line.match(/^(\S+)\s*(.*)$/);
+        const directive = first.toUpperCase();
+        const rest = restRaw.trim();
+
+        // NAME EQU expr / NAME SET expr
+        const assign = rest.match(/^(EQU|SET)(?:\s+(.*))?$/i);
+        if (assign) {
+            if (!/^[A-Za-z_]\w*$/.test(first)) {
+                this.errors.push({ line: lineNum, message: `Nome di simbolo non valido: ${first}` });
                 return { handled: true };
             }
-            if (isPass1) {
-                this.currentAddress = addr;
-            }
-            return { handled: true, setAddress: addr };
-        }
-        
-        // EQU directive
-        if (parts.length >= 3 && parts[1].toUpperCase() === 'EQU') {
-            const name = parts[0].toUpperCase();
-            const value = this.parseNumber(parts[2]);
-            if (value === null) {
-                this.errors.push({ line: lineNum, message: `Invalid EQU value: ${parts[2]}` });
-            } else {
-                this.constants[name] = value;
+            const value = this.evaluate(assign[2], lineNum);
+            if (value !== null) {
+                this.constants[directive] = value;
             }
             return { handled: true };
         }
-        
-        // CBLOCK / ENDC
-        if (directive === 'CBLOCK') {
-            const startAddr = parts[1] ? this.parseNumber(parts[1]) : 0x0C;
-            this.cblockAddress = startAddr;
-            return { handled: true };
-        }
-        
-        if (directive === 'ENDC') {
-            this.cblockAddress = undefined;
-            return { handled: true };
-        }
-        
-        // Variable in CBLOCK
-        if (this.cblockAddress !== undefined && parts[0]) {
-            const name = parts[0].toUpperCase();
-            this.variables[name] = this.cblockAddress;
-            this.cblockAddress++;
-            return { handled: true };
-        }
-        
-        // #DEFINE
-        if (directive === '#DEFINE' && parts.length >= 3) {
-            const name = parts[1].toUpperCase();
-            const value = parts.slice(2).join(' ');
-            this.constants[name] = value;
-            return { handled: true };
-        }
-        
-        // #INCLUDE (simplified - just skip)
-        if (directive === '#INCLUDE' || directive === 'INCLUDE') {
-            return { handled: true };
-        }
-        
-        // LIST, PROCESSOR - carica simboli device se possibile
-        if (directive === 'LIST' || directive === 'PROCESSOR') {
-            // Estrai device ID da "LIST P=16F877A" o "PROCESSOR 16F877A"
-            var raw = parts.slice(1).join(' ');
-            var pMatch = raw.match(/P\s*=\s*(\S+)/i) || raw.match(/^(\S+)/);
-            if (pMatch) {
-                var devId = pMatch[1].toUpperCase();
-                if (devId.indexOf('PIC') !== 0) devId = 'PIC' + devId;
-                // Carica simboli se deviceLoader disponibile
-                if (this._deviceLoader && this._deviceLoader.devices && this._deviceLoader.devices[devId]) {
-                    this.loadDeviceSymbols(devId, this._deviceLoader.devices[devId]);
-                }
-            }
-            return { handled: true };
-        }
-        
-        // __CONFIG directive: salva configuration word per hex
-        if (directive === '__CONFIG' || directive === 'CONFIG') {
-            var configExpr = parts.slice(1).join(' ').trim();
-            // Rimuovi eventuale prefisso "CONFIG =" (sintassi alternativa)
-            configExpr = configExpr.replace(/^=\s*/, '');
-            
-            var configVal = this._parseConfigExpression(configExpr, lineNum);
-            if (configVal !== null) {
-                this.configWord = configVal & 0x3FFF;
-            } else {
-                this.errors.push({ line: lineNum, message: 'Invalid __CONFIG value: ' + configExpr });
-            }
-            return { handled: true };
-        }
-        
-        // RADIX, END (skip)
-        if (['RADIX', 'END'].includes(directive)) {
-            return { handled: true };
-        }
-        
-        // DW / DATA / DT
-        if (['DW', 'DATA', 'DT', 'DE'].includes(directive)) {
-            const words = [];
-            for (let i = 1; i < parts.length; i++) {
-                const values = parts[i].split(',').map(v => v.trim()).filter(v => v);
-                for (const val of values) {
-                    const num = this.parseNumber(val);
-                    if (num !== null) {
-                        if (directive === 'DT') {
-                            words.push(0x3400 | (num & 0xFF)); // RETLW
-                        } else {
-                            words.push(num & 0x3FFF);
-                        }
+
+        switch (directive) {
+            case 'ORG': {
+                const addr = this.evaluate(rest, lineNum);
+                if (addr !== null) {
+                    if (addr < 0) {
+                        this.errors.push({ line: lineNum, message: `Indirizzo ORG non valido: ${rest}` });
+                    } else {
+                        this.currentAddress = addr;
                     }
                 }
+                return { handled: true };
             }
-            if (isPass1) {
-                return { handled: true, increment: words.length };
+
+            case 'CBLOCK': {
+                let start = this.cblockNext;
+                if (rest) {
+                    const value = this.evaluate(rest, lineNum);
+                    if (value !== null) start = value;
+                }
+                this.cblockAddress = start;
+                return { handled: true };
             }
-            return { handled: true, words: words };
+
+            case 'ENDC':
+                this.errors.push({ line: lineNum, message: 'ENDC senza CBLOCK' });
+                return { handled: true };
+
+            case 'END':
+                // Come MPASM: quel che segue END non viene assemblato.
+                return { handled: true, end: true };
+
+            case 'RADIX':
+                this.setRadix(rest, lineNum);
+                return { handled: true };
+
+            case 'LIST':
+            case 'PROCESSOR': {
+                // "LIST P=16F877A, R=DEC" o "PROCESSOR 16F877A": simboli e
+                // limiti del device, se il loader lo ha gia' caricato.
+                const proc = directive === 'LIST' ? rest.match(/\bP\s*=\s*([\w]+)/i) : rest.match(/^([\w]+)/);
+                if (proc) {
+                    let devId = proc[1].toUpperCase();
+                    if (devId.indexOf('PIC') !== 0) devId = 'PIC' + devId;
+                    if (this._deviceLoader && this._deviceLoader.devices && this._deviceLoader.devices[devId]) {
+                        this.loadDeviceSymbols(devId, this._deviceLoader.devices[devId]);
+                    }
+                }
+                const radix = rest.match(/\bR\s*=\s*(\w+)/i);
+                if (radix) this.setRadix(radix[1], lineNum);
+                return { handled: true };
+            }
+
+            case '__CONFIG':
+            case 'CONFIG': {
+                // Configuration word (0x2007): finisce nell'Intel HEX.
+                // "__CONFIG _XT_OSC & _WDT_OFF" o un valore numerico.
+                const configVal = this._parseConfigExpression(rest.replace(/^=\s*/, ''), lineNum);
+                if (configVal !== null) this.configWord = configVal & 0x3FFF;
+                return { handled: true };
+            }
+
+            // Accettate e ignorate: non cambiano il codice simulato.
+            case '#INCLUDE':
+            case 'INCLUDE':
+            case 'NOLIST':
+            case 'ERRORLEVEL':
+                return { handled: true };
+
+            case 'DW':
+            case 'DATA':
+            case 'DT':
+            case 'DE':
+                this.processData(directive, rest, lineNum, isPass1);
+                return { handled: true };
+
+            case 'RES': {
+                const count = this.evaluate(rest, lineNum);
+                if (count !== null) {
+                    if (count < 0) {
+                        this.errors.push({ line: lineNum, message: `Numero di parole RES non valido: ${rest}` });
+                    } else {
+                        for (let i = 0; i < count; i++) this.output(0x3FFF, lineNum, isPass1, true);
+                    }
+                }
+                return { handled: true };
+            }
+
+            case 'BANKSEL': {
+                // Come MPASM: BCF/BSF STATUS,RP0 e, sui device a 4 banchi,
+                // anche STATUS,RP1. Il numero di parole non dipende
+                // dall'operando, quindi la prima passata puo' contarle.
+                const fourBanks = this.limits.banks >= 4;
+                if (isPass1) {
+                    this.output(0, lineNum, true);
+                    if (fourBanks) this.output(0, lineNum, true);
+                    return { handled: true };
+                }
+                const addr = this.evalRange(rest, 0, this.ramTop(), 'Registro', lineNum);
+                const bitOp = (bit, set) => (set ? 0x1400 : 0x1000) | (bit << 7) | 0x03;
+                this.output(bitOp(5, addr !== null && (addr & 0x80)), lineNum, false);
+                if (fourBanks) this.output(bitOp(6, addr !== null && (addr & 0x100)), lineNum, false);
+                return { handled: true };
+            }
         }
-        
-        // RES (reserve space)
-        if (directive === 'RES') {
-            const count = this.parseNumber(parts[1]) || 1;
-            if (isPass1) {
-                return { handled: true, increment: count };
-            }
-            const words = new Array(count).fill(0x3FFF);
-            return { handled: true, words: words };
-        }
-        
+
         return { handled: false };
     }
 
-    parseLine(line) {
-        const parts = line.trim().split(/[\s,]+/).filter(p => p);
-        if (parts.length === 0) return null;
-        
-        const mnemonic = parts[0].toUpperCase();
-        const operands = parts.slice(1);
-        
-        return { mnemonic, operands };
+    processCblockLine(line, lineNum, isPass1) {
+        if (/^ENDC\b/i.test(line)) {
+            this.cblockNext = this.cblockAddress;
+            this.cblockAddress = undefined;
+            return;
+        }
+
+        // Una o piu' variabili per riga, separate da virgole; "NOME:n"
+        // riserva n byte.
+        for (const item of this.splitArgs(line)) {
+            const m = item.match(/^([A-Za-z_]\w*)\s*(?::\s*(.+))?$/);
+            if (!m) {
+                this.errors.push({ line: lineNum, message: `Voce CBLOCK non valida: ${item}` });
+                continue;
+            }
+
+            let size = 1;
+            if (m[2] !== undefined) {
+                size = this.evaluate(m[2], lineNum);
+                if (size === null) continue;
+                if (size < 1) {
+                    this.errors.push({ line: lineNum, message: `Dimensione non valida: ${item}` });
+                    continue;
+                }
+            }
+
+            const name = m[1].toUpperCase();
+            if (isPass1 && this.variables[name] !== undefined) {
+                this.errors.push({ line: lineNum, message: `Variabile duplicata: ${name}` });
+            }
+            this.variables[name] = this.cblockAddress;
+            this.cblockAddress += size;
+        }
     }
 
-    assembleInstruction(parts, lineNum) {
-        const { mnemonic, operands } = parts;
+    processData(directive, rest, lineNum, isPass1) {
+        const args = this.splitArgs(rest);
+        if (args.length === 0) {
+            this.errors.push({ line: lineNum, message: 'Operando mancante' });
+            return;
+        }
+
+        // DT e' codice (RETLW k), gli altri sono dati e possono finire
+        // anche nella zona EEPROM o di configurazione.
+        const isData = directive !== 'DT';
+
+        for (const arg of args) {
+            // Stringa: un valore per carattere ("CIAO" -> 4 RETLW con DT).
+            const str = arg.match(/^"(.*)"$/);
+            const values = str
+                ? Array.from(str[1], ch => ch.charCodeAt(0))
+                : [isPass1 ? 0 : this.dataValue(directive, arg, lineNum)];
+
+            for (const value of values) {
+                let word;
+                if (directive === 'DT') word = 0x3400 | (value & 0xFF);
+                else if (directive === 'DE') word = value & 0xFF;
+                else word = value & 0x3FFF;
+                this.output(word, lineNum, isPass1, isData);
+            }
+        }
+    }
+
+    dataValue(directive, arg, lineNum) {
+        const value = directive === 'DW' || directive === 'DATA'
+            ? this.evalRange(arg, 0, 0x3FFF, 'Valore', lineNum)
+            : this.evalRange(arg, -128, 255, 'Valore', lineNum);
+        // Valore errato: si emette comunque una parola per non spostare
+        // gli indirizzi; l'errore e' gia' registrato.
+        return value === null ? 0 : value;
+    }
+
+    setRadix(name, lineNum) {
+        const radix = { HEX: 16, DEC: 10 }[(name || '').toUpperCase()];
+        if (radix === undefined) {
+            this.errors.push({ line: lineNum, message: `Radice non supportata: ${name} (usa DEC o HEX)` });
+        } else {
+            this.radix = radix;
+        }
+    }
+
+    // === INSTRUCTIONS ===
+
+    processInstruction(line, lineNum, isPass1) {
+        const [, first, rest] = line.match(/^(\S+)\s*(.*)$/);
+        const mnemonic = first.toUpperCase();
         const instr = this.instructions[mnemonic];
-        
+
         if (!instr) {
-            this.errors.push({ line: lineNum, message: `Unknown instruction: ${mnemonic}` });
+            if (isPass1) {
+                this.errors.push({ line: lineNum, message: `Istruzione sconosciuta: ${mnemonic}` });
+            }
+            return;
+        }
+
+        if (isPass1) {
+            this.output(0, lineNum, true);
+            return;
+        }
+
+        const word = this.assembleInstruction(mnemonic, instr, this.splitArgs(rest), lineNum);
+        // Anche se l'operando e' errato la parola va emessa, altrimenti gli
+        // indirizzi divergono da quelli calcolati nella prima passata.
+        this.output(word === null ? 0 : word, lineNum, false);
+    }
+
+    assembleInstruction(mnemonic, instr, operands, lineNum) {
+        const arity = {
+            none: [0, 0], byte: [1, 2], byte_f: [1, 1], bit: [2, 2], literal: [1, 1], address: [1, 1]
+        }[instr.type];
+
+        if (operands.length < arity[0]) {
+            this.errors.push({ line: lineNum, message: `Operando mancante per ${mnemonic}` });
             return null;
         }
-        
-        let word = instr.opcode;
-        
+        if (operands.length > arity[1]) {
+            this.errors.push({ line: lineNum, message: `Troppi operandi per ${mnemonic}` });
+            return null;
+        }
+
+        const word = instr.opcode;
+
         switch (instr.type) {
             case 'none':
-                break;
-                
+                return word;
+
             case 'byte': {
-                // f, d format
-                const f = this.resolveOperand(operands[0], lineNum);
-                let d = 1; // default to F
-                if (operands.length > 1) {
-                    const dOp = operands[1].toUpperCase();
-                    if (dOp === 'W' || dOp === '0') d = 0;
-                    else if (dOp === 'F' || dOp === '1') d = 1;
-                    else d = this.resolveOperand(operands[1], lineNum);
-                }
-                if (f === null) return null;
-                word |= (d << 7) | (f & 0x7F);
-                break;
+                // f, d format (d omesso = F, come in MPASM)
+                const f = this.evalRange(operands[0], 0, this.ramTop(), 'Registro', lineNum);
+                const d = operands.length > 1
+                    ? this.evalRange(operands[1], 0, 1, 'Destinazione (W o F)', lineNum)
+                    : 1;
+                if (f === null || d === null) return null;
+                return word | (d << 7) | (f & 0x7F);
             }
-            
+
             case 'byte_f': {
                 // f only (CLRF, MOVWF)
-                const f = this.resolveOperand(operands[0], lineNum);
+                const f = this.evalRange(operands[0], 0, this.ramTop(), 'Registro', lineNum);
                 if (f === null) return null;
-                word |= (f & 0x7F);
-                break;
+                return word | (f & 0x7F);
             }
-            
-            case 'bit': {
-                // f, b format
-                const f = this.resolveOperand(operands[0], lineNum);
-                const b = this.resolveOperand(operands[1], lineNum);
-                if (f === null || b === null) return null;
-                word |= ((b & 0x07) << 7) | (f & 0x7F);
-                break;
-            }
-            
-            case 'literal': {
-                // k format
-                const k = this.resolveOperand(operands[0], lineNum);
-                if (k === null) return null;
-                word |= (k & 0xFF);
-                break;
-            }
-            
-            case 'address': {
-                // 11-bit address
-                let addr = this.resolveOperand(operands[0], lineNum);
-                if (addr === null) return null;
-                word |= (addr & 0x7FF);
-                break;
-            }
-        }
-        
-        return word;
-    }
 
-    resolveOperand(operand, lineNum) {
-        if (operand === undefined || operand === null) {
-            this.errors.push({ line: lineNum, message: 'Missing operand' });
-            return null;
-        }
-        
-        const upper = operand.toUpperCase();
-        
-        // Check constants first
-        if (this.constants[upper] !== undefined) {
-            const val = this.constants[upper];
-            if (typeof val === 'string') {
-                return this.parseNumber(val);
+            case 'bit': {
+                const f = this.evalRange(operands[0], 0, this.ramTop(), 'Registro', lineNum);
+                const b = this.evalRange(operands[1], 0, 7, 'Numero di bit', lineNum);
+                if (f === null || b === null) return null;
+                return word | (b << 7) | (f & 0x7F);
             }
-            return val;
-        }
-        
-        // Check labels
-        if (this.labels[upper] !== undefined) {
-            return this.labels[upper];
-        }
-        
-        // Check variables
-        if (this.variables[upper] !== undefined) {
-            return this.variables[upper];
-        }
-        
-        // Check register names
-        if (this.registers[upper] !== undefined) {
-            return this.registers[upper];
-        }
-        
-        // Try parsing as number
-        const num = this.parseNumber(operand);
-        if (num !== null) {
-            return num;
-        }
-        
-        // Check for expression (simple subtraction/addition)
-        const exprMatch = operand.match(/^(\w+)\s*([+-])\s*(\w+)$/);
-        if (exprMatch) {
-            const left = this.resolveOperand(exprMatch[1], lineNum);
-            const right = this.resolveOperand(exprMatch[3], lineNum);
-            if (left !== null && right !== null) {
-                return exprMatch[2] === '+' ? left + right : left - right;
+
+            case 'literal': {
+                // -128..255: i negativi sono il complemento a due (MOVLW -1 = 0xFF)
+                const k = this.evalRange(operands[0], -128, 255, 'Letterale', lineNum);
+                if (k === null) return null;
+                return word | (k & 0xFF);
+            }
+
+            case 'address': {
+                // Il 16F84A ha 1K di memoria programma
+                // Tutta la memoria programma del device; nell'istruzione
+                // entrano 11 bit, il resto lo danno PCLATH<4:3>.
+                const addr = this.evalRange(operands[0], 0, this.limits.programSize - 1, 'Indirizzo', lineNum);
+                if (addr === null) return null;
+                return word | (addr & 0x7FF);
             }
         }
-        
-        this.errors.push({ line: lineNum, message: `Cannot resolve operand: ${operand}` });
+
         return null;
     }
 
-    parseNumber(str) {
-        if (!str) return null;
-        str = str.trim().toUpperCase();
-        
-        // Hex: 0x, H', $
-        if (str.startsWith('0X')) return parseInt(str.substring(2), 16);
-        if (str.startsWith('H\'') && str.endsWith('\'')) return parseInt(str.slice(2, -1), 16);
-        if (str.startsWith('$')) return parseInt(str.substring(1), 16);
-        if (str.endsWith('H')) return parseInt(str.slice(0, -1), 16);
-        
-        // Binary: 0b, B', %
-        if (str.startsWith('0B')) return parseInt(str.substring(2), 2);
-        if (str.startsWith('B\'') && str.endsWith('\'')) return parseInt(str.slice(2, -1), 2);
-        if (str.startsWith('%')) return parseInt(str.substring(1), 2);
-        
-        // Octal: O', 0o
-        if (str.startsWith('O\'') && str.endsWith('\'')) return parseInt(str.slice(2, -1), 8);
-        if (str.startsWith('0O')) return parseInt(str.substring(2), 8);
-        
-        // Decimal: D', .
-        if (str.startsWith('D\'') && str.endsWith('\'')) return parseInt(str.slice(2, -1), 10);
-        if (str.startsWith('.')) return parseInt(str.substring(1), 10);
-        
-        // Character: A'x' or 'x'
-        if ((str.startsWith('A\'') || str.startsWith('\'')) && str.endsWith('\'')) {
-            const char = str.startsWith('A\'') ? str.charAt(2) : str.charAt(1);
-            return char.charCodeAt(0);
+    /**
+     * Divide gli operandi sulle virgole, ignorando quelle tra apici o
+     * parentesi: "MOVLW ','" e "MOVLW (A + B)" restano un operando solo.
+     */
+    splitArgs(str) {
+        const args = [];
+        let current = '';
+        let quote = null;
+        let depth = 0;
+
+        for (const ch of str) {
+            if (quote) {
+                if (ch === quote) quote = null;
+            } else if (ch === '"' || ch === '\'') {
+                quote = ch;
+            } else if (ch === '(') {
+                depth++;
+            } else if (ch === ')') {
+                depth--;
+            } else if (ch === ',' && depth === 0) {
+                args.push(current.trim());
+                current = '';
+                continue;
+            }
+            current += ch;
         }
-        
-        // Plain decimal
-        const num = parseInt(str, 10);
-        return isNaN(num) ? null : num;
+
+        if (current.trim() || args.length > 0) {
+            args.push(current.trim());
+        }
+        return args;
     }
 
-    emit(word, lineNum) {
-        while (this.programMemory.length < this.currentAddress) {
+    // === EXPRESSIONS ===
+
+    /**
+     * Valuta un operando. Restituisce il valore, oppure null dopo aver
+     * registrato un errore: mai un valore inventato. Un operando che non
+     * si risolve deve fermare l'assemblaggio, non diventare 0 in silenzio.
+     */
+    evaluate(expr, lineNum) {
+        try {
+            return this.parseExpression(expr);
+        } catch (e) {
+            this.errors.push({ line: lineNum, message: e.message });
+            return null;
+        }
+    }
+
+    evalRange(expr, min, max, what, lineNum) {
+        const value = this.evaluate(expr, lineNum);
+        if (value === null) return null;
+        if (value < min || value > max) {
+            const fmt = v => (v < 0 ? '-' : '') + '0x' + Math.abs(v).toString(16).toUpperCase();
+            this.errors.push({
+                line: lineNum,
+                message: `${what} fuori intervallo: ${expr.trim()} = ${fmt(value)} (ammesso ${fmt(min)}..${fmt(max)})`
+            });
+            return null;
+        }
+        return value;
+    }
+
+    /**
+     * Espressioni in stile MPASM: + - * / << >> & | ^ ~, parentesi,
+     * HIGH/LOW e $ (indirizzo corrente). Precedenze come in C.
+     */
+    parseExpression(expr) {
+        const text = (expr || '').trim();
+        if (!text) throw new Error('Operando mancante');
+
+        const tokens = this.tokenize(text);
+        let pos = 0;
+
+        const peek = () => tokens[pos];
+        const isOp = (...ops) => peek() !== undefined && peek().type === 'op' && ops.includes(peek().value);
+
+        let orExpr;
+
+        const primary = () => {
+            const t = tokens[pos++];
+            if (!t) throw new Error(`Espressione incompleta: ${text}`);
+            if (t.type === 'num') return t.value;
+            if (t.type === 'sym') return this.lookupSymbol(t.value);
+            if (t.value === '(') {
+                const value = orExpr();
+                if (!isOp(')')) throw new Error(`Manca ')' in: ${text}`);
+                pos++;
+                return value;
+            }
+            throw new Error(`'${t.value}' inatteso in: ${text}`);
+        };
+
+        const unary = () => {
+            if (isOp('-')) { pos++; return -unary(); }
+            if (isOp('+')) { pos++; return unary(); }
+            if (isOp('~')) { pos++; return ~unary(); }
+            const t = peek();
+            if (t && t.type === 'sym' && (t.value === 'HIGH' || t.value === 'LOW')) {
+                pos++;
+                const value = unary();
+                return t.value === 'HIGH' ? (value >> 8) & 0xFF : value & 0xFF;
+            }
+            return primary();
+        };
+
+        const binary = (operand, ops, apply) => () => {
+            let left = operand();
+            while (isOp(...ops)) {
+                const op = tokens[pos++].value;
+                left = apply(op, left, operand());
+            }
+            return left;
+        };
+
+        const mul = binary(unary, ['*', '/'], (op, a, b) => {
+            if (op === '*') return a * b;
+            if (b === 0) throw new Error(`Divisione per zero in: ${text}`);
+            return Math.trunc(a / b);
+        });
+        const add = binary(mul, ['+', '-'], (op, a, b) => (op === '+' ? a + b : a - b));
+        const shift = binary(add, ['<<', '>>'], (op, a, b) => (op === '<<' ? a << b : a >> b));
+        const and = binary(shift, ['&'], (op, a, b) => a & b);
+        const xor = binary(and, ['^'], (op, a, b) => a ^ b);
+        orExpr = binary(xor, ['|'], (op, a, b) => a | b);
+
+        const value = orExpr();
+        if (pos < tokens.length) {
+            throw new Error(`'${tokens[pos].value}' inatteso in: ${text}`);
+        }
+        return value;
+    }
+
+    tokenize(text) {
+        const tokens = [];
+        const number = str => {
+            const value = this.parseNumber(str);
+            if (value === null) throw new Error(`Numero non valido: ${str}`);
+            return { type: 'num', value };
+        };
+
+        let i = 0;
+        while (i < text.length) {
+            const rest = text.slice(i);
+            let m;
+
+            if ((m = rest.match(/^\s+/))) {
+                // spazi
+            } else if ((m = rest.match(/^[HBDOA]'[^']*'/i)) || (m = rest.match(/^'[^']*'/))) {
+                tokens.push(number(m[0]));          // H'1F', B'0101', 'x', ...
+            } else if ((m = rest.match(/^\$(?![0-9A-Za-z])/))) {
+                tokens.push({ type: 'num', value: this.currentAddress });
+            } else if ((m = rest.match(/^[$%][0-9A-Za-z]+/)) || (m = rest.match(/^\.[0-9A-Za-z]+/)) ||
+                       (m = rest.match(/^[0-9][0-9A-Za-z]*/))) {
+                tokens.push(number(m[0]));          // $1F, %0101, .10, 0x1F, 1FH, 10
+            } else if ((m = rest.match(/^[A-Za-z_]\w*/))) {
+                tokens.push({ type: 'sym', value: m[0].toUpperCase() });
+            } else if ((m = rest.match(/^(<<|>>|[-+*/&|^~()])/))) {
+                tokens.push({ type: 'op', value: m[0] });
+            } else {
+                throw new Error(`Carattere inatteso '${rest[0]}' in: ${text}`);
+            }
+
+            i += m[0].length;
+        }
+
+        return tokens;
+    }
+
+    lookupSymbol(name) {
+        for (const table of [this.constants, this.labels, this.variables, this.registers]) {
+            if (Object.prototype.hasOwnProperty.call(table, name)) {
+                return table[name];
+            }
+        }
+        throw new Error(`Simbolo non definito: ${name}`);
+    }
+
+    /**
+     * Converte un letterale numerico, oppure restituisce null. Ogni forma
+     * deve corrispondere per intero: parseInt da solo accetterebbe
+     * "B'0102'" come 2 e "FETCH" come 0xFE.
+     */
+    parseNumber(str) {
+        if (typeof str !== 'string') return null;
+        const s = str.trim();
+
+        // Carattere: 'x' o A'x'. Va letto prima del maiuscolo, che
+        // trasformerebbe 'a' in 0x41.
+        const ch = s.match(/^[Aa]?'(.)'$/);
+        if (ch) return ch[1].charCodeAt(0);
+
+        const u = s.toUpperCase();
+
+        // In radice esadecimale le cifre nude sono esadecimali: "0B1" e'
+        // 0xB1, non un binario.
+        if (this.radix === 16 && /^[0-9][0-9A-F]*$/.test(u)) return parseInt(u, 16);
+
+        const forms = [
+            [/^0X([0-9A-F]+)$/, 16], [/^H'([0-9A-F]+)'$/, 16], [/^\$([0-9A-F]+)$/, 16],
+            [/^0B([01]+)$/, 2], [/^B'([01]+)'$/, 2], [/^%([01]+)$/, 2],
+            [/^O'([0-7]+)'$/, 8], [/^0O([0-7]+)$/, 8],
+            [/^D'([0-9]+)'$/, 10], [/^\.([0-9]+)$/, 10],
+            [/^([0-9][0-9A-F]*)H$/, 16],
+            [/^([0-9]+)$/, 10]
+        ];
+
+        for (const [re, base] of forms) {
+            const m = u.match(re);
+            if (m) return parseInt(m[1], base);
+        }
+        return null;
+    }
+
+    // === OUTPUT ===
+
+    /**
+     * Emette una parola all'indirizzo corrente (seconda passata) o la
+     * conta soltanto (prima passata). I dati possono finire anche nella
+     * EEPROM (0x2100-0x213F) o nella zona ID/configurazione (0x2000-0x20FF,
+     * non simulata); il codice deve stare nella memoria programma.
+     */
+    output(word, lineNum, isPass1, isData = false) {
+        const addr = this.currentAddress;
+        this.currentAddress++;
+
+        const progTop = this.limits.programSize - 1;
+        const inEeprom = addr >= 0x2100 && addr < 0x2100 + this.limits.eepromSize;
+        const inConfig = addr >= 0x2000 && addr < 0x2100;
+
+        if (isPass1) {
+            if (addr > progTop && !(isData && (inEeprom || inConfig)) && this.overflowLine !== lineNum) {
+                this.overflowLine = lineNum;
+                const top = progTop.toString(16).toUpperCase().padStart(3, '0');
+                this.errors.push({
+                    line: lineNum,
+                    message: `Indirizzo 0x${addr.toString(16).toUpperCase()} fuori dalla memoria programma (0x000-0x${top})`
+                });
+            }
+            return;
+        }
+
+        if (inEeprom) {
+            this.eepromData[addr - 0x2100] = word & 0xFF;
+            return;
+        }
+        if (inConfig) {
+            // DW a 0x2007 equivale a __CONFIG; il resto (ID) non e' simulato.
+            if (addr === this.configAddr) this.configWord = word & 0x3FFF;
+            return;
+        }
+
+        this.emit(addr, word, lineNum);
+    }
+
+    /** Ultimo indirizzo di registro valido: 0xFF con 2 banchi, 0x1FF con 4. */
+    ramTop() {
+        return this.limits.banks >= 4 ? 0x1FF : 0xFF;
+    }
+
+    emit(addr, word, lineNum) {
+        while (this.programMemory.length < addr) {
             this.programMemory.push(0x3FFF);
         }
-        this.programMemory[this.currentAddress] = word & 0x3FFF;
-        this.sourceMap[this.currentAddress] = lineNum;
-        
+        this.programMemory[addr] = word & 0x3FFF;
+        this.sourceMap[addr] = lineNum;
+
         this.listing.push({
-            address: this.currentAddress,
+            address: addr,
             word: word & 0x3FFF,
             line: lineNum
         });
-        
-        this.currentAddress++;
     }
 
     getResult() {
         return {
             success: this.errors.length === 0,
             programMemory: this.programMemory,
+            eepromData: this.eepromData,
+            configWord: this.configWord,
             errors: this.errors,
             warnings: this.warnings,
             labels: this.labels,
