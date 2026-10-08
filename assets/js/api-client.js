@@ -24,7 +24,11 @@ PicSim.API = (function() {
      * Esegue richiesta HTTP
      */
     async function request(endpoint, options = {}) {
-        const url = config.root + endpoint.replace(/^\//, '');
+        let path = endpoint.replace(/^\//, '');
+        // Con i permalink "semplici" la radice e' .../?rest_route=/picsim/v1/:
+        // i parametri dell'endpoint vanno accodati con &, un secondo ? da' 404.
+        if (config.root.indexOf('?') !== -1) path = path.replace('?', '&');
+        const url = config.root + path;
         
         const defaults = {
             headers: {
