@@ -16,10 +16,38 @@ class VirtualSPIBus {
 
     /**
      * Collega un device al bus SPI.
+     * Con `cs` il device e' selezionato dal suo pin di chip select (attivo
+     * basso), letto dalla GPIO a ogni ciclo: fronte di discesa = select(),
+     * fronte di salita = deselect() (latch del 74HC595, caricamento del
+     * MAX7219). Senza `cs` vale la selezione manuale con select(index).
      * @param {VirtualSPIDevice} device
+     * @param {{port: string, pin: number}} [cs] - Es. { port: 'A', pin: 0 }
      */
-    attach(device) {
+    attach(device, cs) {
+        device._cs = cs || null;
         this.devices.push(device);
+    }
+
+    /** Livello del pin di chip select: un pin in ingresso resta alto. */
+    _csLevel(cpu, cs) {
+        var out = cpu.getPortOutput(cs.port);
+        if (!out || (out.tris >> cs.pin) & 1) return 1;
+        return (out.raw >> cs.pin) & 1;
+    }
+
+    /**
+     * Segue i pin di chip select. Chiamato dalla MSSP a ogni ciclo e prima
+     * di ogni trasferimento.
+     * @param {PIC16Core} cpu
+     */
+    updateChipSelects(cpu) {
+        for (var i = 0; i < this.devices.length; i++) {
+            var dev = this.devices[i];
+            if (!dev._cs) continue;
+            var low = this._csLevel(cpu, dev._cs) === 0;
+            if (low && !dev.selected) dev.select();
+            else if (!low && dev.selected) dev.deselect();
+        }
     }
 
     /**
@@ -42,6 +70,17 @@ class VirtualSPIBus {
      * @returns {number} Byte dal slave (MISO)
      */
     transfer(byteOut) {
+        // Device con chip select: ricevono tutti quelli selezionati; MISO dal primo
+        var result = null;
+        for (var i = 0; i < this.devices.length; i++) {
+            var dev = this.devices[i];
+            if (dev._cs && dev.selected) {
+                var miso = dev.transfer(byteOut);
+                if (result === null) result = miso;
+            }
+        }
+        if (result !== null) return result;
+
         if (this.selectedDevice >= 0 && this.selectedDevice < this.devices.length) {
             return this.devices[this.selectedDevice].transfer(byteOut);
         }
@@ -119,6 +158,15 @@ class VirtualI2CBus {
      */
     detach(address) {
         this.devices.delete(address);
+    }
+
+    /**
+     * Avanza nel tempo simulato i device che ne hanno bisogno (RTC).
+     * Chiamato dalla MSSP a ogni ciclo istruzione.
+     * @param {number} cycles
+     */
+    tick(cycles) {
+        this.devices.forEach(function(dev) { if (dev.tick) dev.tick(cycles); });
     }
 
     /**

@@ -38,9 +38,10 @@ class PIC16MSSP extends PIC16Peripheral {
         this.pirAddr = this._resolveReg(irqFlag.reg, 0x0C);
         this.pirBit  = irqFlag.bit !== undefined ? irqFlag.bit : 3;
 
-        // Bus virtuali
-        this.spiBus = null;
-        this.i2cBus = null;
+        // Bus virtuali, a cui i componenti VHW collegano i loro device.
+        // Nella 3.1 restavano null e nessun device I2C/SPI si collegava.
+        this.spiBus = typeof VirtualSPIBus !== 'undefined' ? new VirtualSPIBus() : null;
+        this.i2cBus = typeof VirtualI2CBus !== 'undefined' ? new VirtualI2CBus() : null;
 
         // SPI transfer state
         this.spiTransferring = false;
@@ -198,6 +199,7 @@ class PIC16MSSP extends PIC16Peripheral {
 
         // Scambia byte col bus SPI
         if (this.spiBus) {
+            if (this.spiBus.updateChipSelects) this.spiBus.updateChipSelects(this.cpu);
             byteIn = this.spiBus.transfer(this.spiByteOut);
         }
 
@@ -267,8 +269,6 @@ class PIC16MSSP extends PIC16Peripheral {
             // Primo byte dopo START = indirizzo
             this.i2cAddress = (value >> 1) & 0x7F;
             this.i2cRW = value & 0x01;
-            this.cpu.ram[this.statReg] = (this.cpu.ram[this.statReg] & ~0x04) |
-                (this.i2cRW ? 0x04 : 0x00); // R/W bit
             this.cpu.ram[this.statReg] &= ~0x20; // D/A = 0 (address)
         } else {
             this.cpu.ram[this.statReg] |= 0x20; // D/A = 1 (data)
@@ -285,8 +285,11 @@ class PIC16MSSP extends PIC16Peripheral {
 
         this.i2cState = 'DATA_TX';
 
-        // Set BF temporaneamente, poi clear + SSPIF
-        this.cpu.ram[this.statReg] &= ~0x01; // Clear BF (trasmissione completata)
+        // Trasmissione completata (istantanea): BF = 0 e, in master mode,
+        // R/W = 0 ("nessuna trasmissione in corso"), che i programmi
+        // attendono con BTFSC SSPSTAT, R_W. Prima vi finiva il bit R/W
+        // dell'indirizzo, e dopo un indirizzo in lettura restava a 1.
+        this.cpu.ram[this.statReg] &= ~0x05;
         this.cpu.ram[this.pirAddr] |= (1 << this.pirBit);
 
         this._logTransfer('I2C_TX', value, ack ? 0 : 1);
@@ -354,6 +357,10 @@ class PIC16MSSP extends PIC16Peripheral {
     // ================================================================
 
     tick(cycles) {
+        // Pin di chip select dei device SPI; tempo simulato per gli RTC I2C
+        if (this.spiBus && this.spiBus.updateChipSelects) this.spiBus.updateChipSelects(this.cpu);
+        if (this.i2cBus && this.i2cBus.tick) this.i2cBus.tick(cycles);
+
         // SPI transfer countdown
         if (this.spiTransferring) {
             this.spiCyclesLeft--;

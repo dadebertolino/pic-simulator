@@ -12,7 +12,7 @@ class VirtualDS3231 extends VirtualI2CDevice {
         this.pointerSet = false;
         this.running = true;
         this._tickCounter = 0;
-        this._tickRate = 1000;
+        this._tickRate = 1000000; // cicli istruzione per secondo simulato (4 MHz)
         this._temperature = 25.0; // Internal temp sensor
 
         this._setCurrentTime();

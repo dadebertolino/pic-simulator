@@ -14,7 +14,7 @@ class VirtualPCF8563 extends VirtualI2CDevice {
         this.pointerSet = false;
         this.running = true;
         this._tickCounter = 0;
-        this._tickRate = 1000;
+        this._tickRate = 1000000; // cicli istruzione per secondo simulato (4 MHz)
         // Timer
         this._timerCounter = 0;
         this._timerEnabled = false;

@@ -4,7 +4,7 @@
 class VHWPCF8563 {
     constructor(hw, cfg, id) {
         this.hw = hw; this.id = id;
-        this.tickRate = parseInt(cfg.tickRate) || 1000;
+        this.tickRate = parseInt(cfg.tickRate) || 1000000;
         this.name = 'PCF8563 RTC [0x51]';
         this._device = null;
     }
@@ -56,7 +56,6 @@ class VHWPCF8563 {
 
     update() {
         if (!this._device) return;
-        this._device.tick(1);
         var t = this._device.getTime();
         var timeEl = document.getElementById(this.id + '-time');
         if (timeEl) timeEl.textContent = t.hours.toString().padStart(2, '0') + ':' + t.minutes.toString().padStart(2, '0') + ':' + t.seconds.toString().padStart(2, '0');

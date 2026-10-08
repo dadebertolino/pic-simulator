@@ -154,13 +154,10 @@ class VHWDS18B20 {
         var tris = this.hw.cpu.ram[this._gpio.trisAddr];
         var data = this.hw.cpu.ram[this._gpio.dataAddr];
         var pinIsOutput = !((tris >> this.pin) & 1);
-        var pinVal;
-        if (pinIsOutput) {
-            pinVal = (data >> this.pin) & 1;
-        } else {
-            // Input: bus è released (pull-up → 1), a meno che device non tiri basso
-            pinVal = this._bus.pinRead();
-        }
+        // Al bus va il livello del master: in ingresso la linea e' rilasciata
+        // (1). Se il device la tiene bassa lo si legge da pinRead(); passargli
+        // quel livello gli nasconderebbe il fronte di salita del rilascio.
+        var pinVal = pinIsOutput ? (data >> this.pin) & 1 : 1;
         if (pinVal !== this._lastPinVal) {
             this._bus.pinWrite(pinVal);
             this._lastPinVal = pinVal;

@@ -15,7 +15,7 @@ class VirtualDS1307 extends VirtualI2CDevice {
 
         // Tick interno (simulato)
         this._tickCounter = 0;
-        this._tickRate = 1000; // ogni N cicli CPU = 1 secondo simulato
+        this._tickRate = 1000000; // cicli istruzione per secondo simulato (4 MHz)
 
         // Callback UI
         this.onTimeChange = null;

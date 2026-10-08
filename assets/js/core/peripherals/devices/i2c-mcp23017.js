@@ -18,6 +18,9 @@ class VirtualMCP23017 extends VirtualI2CDevice {
     busAddress(address, rw) {
         if (address === this.address) {
             this.reading = (rw === 1);
+            // In scrittura il primo byte e' l'indirizzo del registro; in
+            // lettura (anche dopo un restart) il puntatore resta.
+            this._expectPointer = !this.reading;
             return true;
         }
         return false;
@@ -25,8 +28,9 @@ class VirtualMCP23017 extends VirtualI2CDevice {
 
     busWrite(value) {
         if (!this.reading) {
-            if (this.regPointer < 0) {
-                this.regPointer = value & 0x15; // Max register
+            if (this._expectPointer) {
+                this.regPointer = value % 22; // 0x00-0x15 in BANK = 0
+                this._expectPointer = false;
             } else {
                 this.registers[this.regPointer] = value;
                 if (this.regPointer === 0x12 || this.regPointer === 0x13) {

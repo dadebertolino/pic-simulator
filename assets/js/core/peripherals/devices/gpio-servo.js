@@ -58,7 +58,9 @@ class VirtualServo {
         // Falling edge: fine impulso high
         if (this._prevPinState && !pinValue) {
             var pw = this._highCycles;
-            if (pw >= this.pulseMin && pw <= this.pulseMax) {
+            // Come un servo vero, poco oltre i limiti va a fine corsa;
+            // impulsi palesemente fuori scala si ignorano.
+            if (pw >= 300 && pw <= 2800) {
                 this.pulseWidth = pw;
                 // Converte pulse width in angolo
                 var range = this.pulseMax - this.pulseMin;

@@ -42,6 +42,11 @@ class PIC16Comparator extends PIC16Peripheral {
         this.vrefReg = parseInt(config.vrefReg, 16) || 0x9D;
         this.numModules = config.modules || 2;
 
+        // CMIF: PIR1.6 sul 628A (la scheda puo' indicare altro)
+        var irqFlag = config.interruptFlag || {};
+        this.pirAddr = irqFlag.reg === 'PIR2' ? 0x0D : 0x0C;
+        this.pirBit = irqFlag.bit !== undefined ? irqFlag.bit : 6;
+
         // Tensioni input analogici (0.0 - 5.0V, impostate dalla UI)
         // AN0=RA0, AN1=RA1, AN2=RA2, AN3=RA3
         this.inputVoltages = [0, 0, 0, 0];
@@ -113,10 +118,9 @@ class PIC16Comparator extends PIC16Peripheral {
         this.cpu.ram[this.controlReg] = (cmcon & 0x3F) |
             (outputs.c1out ? 0x40 : 0) | (outputs.c2out ? 0x80 : 0);
 
-        // Detect cambio output → CMIF (PIR1 bit 6 sul 628A = stessa posizione)
+        // Cambio di un'uscita: CMIF (PIR1.6 sul 628A)
         if (currentOutput !== this.prevOutput) {
-            // CMIF - per 628A e' in PIR1 ma il bit varia
-            // Semplificato: set generico per ora
+            this.cpu.ram[this.pirAddr] |= (1 << this.pirBit);
             this.prevOutput = currentOutput;
         }
     }
@@ -138,46 +142,41 @@ class PIC16Comparator extends PIC16Peripheral {
         var c1out = false;
         var c2out = false;
 
+        // Modi CM2:CM0 del datasheet 16F627A/628A/648A (cap. 10).
+        // COUT = 1 quando VIN+ > VIN-.
         switch (mode) {
-            case 0x01: // Three inputs muxed
-                // C1: VIN- = RA0, VIN+ = RA3
-                // C2: VIN- = RA1 (CIS=0) o RA2 (CIS=1), VIN+ = RA3
-                c1out = v[0] < v[3];
-                c2out = cis ? (v[2] < v[3]) : (v[1] < v[3]);
+            case 0x01: // Three inputs multiplexed to two comparators
+                // C1: VIN- = RA0 (CIS=0) o RA3 (CIS=1), VIN+ = RA2
+                // C2: VIN- = RA1, VIN+ = RA2
+                c1out = (cis ? v[3] : v[0]) < v[2];
+                c2out = v[1] < v[2];
                 break;
 
-            case 0x02: // Four inputs muxed
-                // C1: VIN- = RA0, VIN+ = Vref
-                // C2: VIN- = RA1 (CIS=0) o RA2 (CIS=1), VIN+ = Vref
-                c1out = v[0] < vref;
-                c2out = cis ? (v[2] < vref) : (v[1] < vref);
+            case 0x02: // Four inputs multiplexed to two comparators
+                // C1: VIN- = RA0 (CIS=0) o RA3 (CIS=1), VIN+ = Vref interna
+                // C2: VIN- = RA1 (CIS=0) o RA2 (CIS=1), VIN+ = Vref interna
+                c1out = (cis ? v[3] : v[0]) < vref;
+                c2out = (cis ? v[2] : v[1]) < vref;
                 break;
 
-            case 0x03: // Two common ref
-                // C1: VIN- = RA0, VIN+ = Vref
-                // C2: VIN- = RA1, VIN+ = Vref
-                c1out = v[0] < vref;
-                c2out = v[1] < vref;
+            case 0x03: // Two common reference comparators
+            case 0x06: // ... with outputs (C1OUT su RA3, C2OUT su RA4)
+                // C1: VIN- = RA0, C2: VIN- = RA1, VIN+ comune = RA2
+                c1out = v[0] < v[2];
+                c2out = v[1] < v[2];
                 break;
 
-            case 0x04: // Two independent
+            case 0x04: // Two independent comparators
                 // C1: VIN- = RA0, VIN+ = RA3
                 // C2: VIN- = RA1, VIN+ = RA2
                 c1out = v[0] < v[3];
                 c2out = v[1] < v[2];
                 break;
 
-            case 0x05: // One independent
+            case 0x05: // One independent comparator
                 // C1: off
                 // C2: VIN- = RA1, VIN+ = RA2
                 c2out = v[1] < v[2];
-                break;
-
-            case 0x06: // Two common ref with outputs
-                // C1: VIN- = RA0, VIN+ = Vref, output on RA3
-                // C2: VIN- = RA1, VIN+ = Vref, output on RA4
-                c1out = v[0] < vref;
-                c2out = v[1] < vref;
                 break;
         }
 

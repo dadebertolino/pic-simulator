@@ -77,6 +77,10 @@ class PIC16CCP extends PIC16Peripheral {
             // Calcola duty cycle PWM quando si scrive CCPxCON
             this._updatePWMDuty();
             this.notifyRegisterChange(this.name + 'CON', value);
+        } else if (addr === this.regLow) {
+            // Nuovo duty da CCPRxL: sul chip vale dal periodo successivo,
+            // qui subito. Prima restava quello dell'ultima scrittura di CCPxCON.
+            this._updatePWMDuty();
         }
     }
 

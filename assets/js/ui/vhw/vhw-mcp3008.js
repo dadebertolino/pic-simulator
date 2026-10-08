@@ -7,7 +7,9 @@ class VHWMCP3008 {
         this.hw = hw;
         this.id = id;
         this.channels = parseInt(cfg.channels) || 8;
-        this.name = 'MCP3008 ADC (' + this.channels + 'ch)';
+        this.csPin = parseInt(cfg.csPin) || 0;
+        this.csPort = cfg.csPort || 'A';
+        this.name = 'MCP3008 ADC (' + this.channels + 'ch) [CS=R' + this.csPort + this.csPin + ']';
         this.el = null;
         this._device = null;
     }
@@ -35,7 +37,9 @@ class VHWMCP3008 {
         if (!mssp || !mssp.spiBus) return;
         if (typeof VirtualMCP3008 !== 'undefined') {
             this._device = new VirtualMCP3008();
-            mssp.spiBus.devices.push(this._device);
+            // Stesso valore iniziale mostrato dagli slider
+            for (var ch = 0; ch < 8; ch++) this._device.setChannel(ch, 512);
+            mssp.spiBus.attach(this._device, { port: this.csPort, pin: this.csPin });
         }
     }
 

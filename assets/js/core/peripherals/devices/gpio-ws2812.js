@@ -35,7 +35,10 @@ class VirtualWS2812 {
         // Real timing: 0.4µs/0.8µs but we use cycle counts
         this.BIT1_MIN_HIGH = 3;    // Min cycles HIGH for bit 1
         this.BIT0_MAX_HIGH = 2;    // Max cycles HIGH for bit 0
-        this.RESET_MIN_LOW = 25;   // Min cycles LOW for reset/latch
+        // Reset/latch: sulle WS2812B serve >= 280 us. Un PIC a 4 MHz, tra un
+        // LED e l'altro, resta basso anche 50 cicli per leggere i colori:
+        // con 25 la striscia si azzerava dopo ogni LED.
+        this.RESET_MIN_LOW = 100;
     }
 
     /**

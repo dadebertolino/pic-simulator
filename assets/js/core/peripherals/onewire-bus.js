@@ -34,6 +34,8 @@ class VirtualOneWireBus {
         // Risposta device
         this._responseBits = [];    // Bit che il device vuole trasmettere
         this._responseIndex = 0;
+        this._slotBit = 1;          // Livello imposto dal device nello slot di lettura corrente
+        this._slotIsRead = false;
 
         // Thresholds (in cicli CPU, standard speed @ 4MHz)
         this.RESET_MIN = 200;       // Min cicli low per reset (rilassato da 480)
@@ -66,9 +68,13 @@ class VirtualOneWireBus {
         this._pinState = pinValue;
 
         if (this._prevPinState === 1 && pinValue === 0) {
-            // Falling edge: master pulls low
+            // Falling edge: master pulls low. Se il device ha bit da
+            // trasmettere, questo e' uno slot di lettura e il bit e' quello
+            // che il master campionera' dopo il rilascio (~15 us).
             this._highCycles = 0;
             this._lowCycles = 0;
+            this._slotIsRead = this._responseBits.length > 0 && this._responseIndex < this._responseBits.length;
+            this._slotBit = this._slotIsRead ? this._responseBits[this._responseIndex++] : 1;
         } else if (this._prevPinState === 0 && pinValue === 1) {
             // Rising edge: master releases
             this._processSlot(this._lowCycles);
@@ -82,11 +88,10 @@ class VirtualOneWireBus {
      * @returns {number} 0 o 1
      */
     pinRead() {
-        // Se siamo in fase di risposta e c'è un bit 0 da trasmettere
-        if (this._responseBits.length > 0 && this._responseIndex < this._responseBits.length) {
-            return this._responseBits[this._responseIndex];
-        }
-        return 1; // Bus idle = high (pull-up)
+        // Impulso di presenza dopo un reset: il device tiene la linea bassa
+        if (this._state === 'PRESENCE') return 0;
+        // Slot di lettura: il bit fissato al fronte di discesa (1 = linea rilasciata)
+        return this._slotBit;
     }
 
     /**
@@ -97,6 +102,8 @@ class VirtualOneWireBus {
             this._lowCycles++;
         } else {
             this._highCycles++;
+            // Finito lo slot il device rilascia la linea
+            if (this._highCycles > 45) this._slotBit = 1;
         }
 
         // Presenza: dopo reset, il device tira basso dopo ~15-60µs per 60-240µs
@@ -137,9 +144,9 @@ class VirtualOneWireBus {
 
         // Time slot: write o read
         if (this._state === 'ROM_CMD' || this._state === 'DEVICE_CMD') {
-            if (this._responseBits.length > 0 && this._responseIndex < this._responseBits.length) {
-                // READ slot: master inizia, device risponde
-                this._responseIndex++;
+            if (this._slotIsRead) {
+                // READ slot: il bit e' stato scelto al fronte di discesa
+                this._slotIsRead = false;
                 if (this._responseIndex >= this._responseBits.length) {
                     this._responseBits = [];
                     this._responseIndex = 0;
@@ -260,6 +267,8 @@ class VirtualOneWireBus {
 
     reset() {
         this._state = 'IDLE';
+        this._slotBit = 1;
+        this._slotIsRead = false;
         this._pinState = 1;
         this._prevPinState = 1;
         this._bitBuffer = [];

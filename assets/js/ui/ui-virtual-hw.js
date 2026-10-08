@@ -178,11 +178,16 @@ class UIVirtualHW {
                 ]
             };
             case 'max7219': return {
-                title: 'MAX7219 LED Driver (SPI)', fields: []
+                title: 'MAX7219 LED Driver (SPI)', fields: [
+                    { key: 'csPort', label: 'CS port', type: 'select', options: portOpts, default: 'A' },
+                    { key: 'csPin', label: 'CS pin', type: 'number', default: '0', min: 0, max: 7 }
+                ]
             };
             case 'mcp3008': return {
                 title: 'MCP3008 10-bit ADC (SPI)', fields: [
-                    { key: 'channels', label: 'Channels', type: 'number', default: '8', min: 1, max: 8 }
+                    { key: 'channels', label: 'Channels', type: 'number', default: '8', min: 1, max: 8 },
+                    { key: 'csPort', label: 'CS port', type: 'select', options: portOpts, default: 'A' },
+                    { key: 'csPin', label: 'CS pin', type: 'number', default: '0', min: 0, max: 7 }
                 ]
             };
             case 'lcd-8bit': return {
@@ -218,7 +223,7 @@ class UIVirtualHW {
             };
             case 'rtc-ds1307': return {
                 title: 'RTC DS1307 (I²C)', fields: [
-                    { key: 'tickRate', label: 'Tick rate (CPU cycles/sec)', type: 'number', default: '1000', min: 100, max: 100000 }
+                    { key: 'tickRate', label: 'Instruction cycles per second', type: 'number', default: '1000000', min: 100, max: 10000000 }
                 ]
             };
             case 'eeprom-24c02': return {
@@ -255,7 +260,7 @@ class UIVirtualHW {
             };
             case 'ds3231': return {
                 title: 'DS3231 RTC (I²C)', fields: [
-                    { key: 'tickRate', label: 'Tick rate (CPU cycles/sec)', type: 'number', default: '1000', min: 100, max: 100000 }
+                    { key: 'tickRate', label: 'Instruction cycles per second', type: 'number', default: '1000000', min: 100, max: 10000000 }
                 ]
             };
             case 'mcp9808': return {
@@ -286,7 +291,7 @@ class UIVirtualHW {
             };
             case 'pcf8563': return {
                 title: 'PCF8563 RTC (I²C)', fields: [
-                    { key: 'tickRate', label: 'Tick rate (CPU cycles/sec)', type: 'number', default: '1000', min: 100, max: 100000 }
+                    { key: 'tickRate', label: 'Instruction cycles per second', type: 'number', default: '1000000', min: 100, max: 10000000 }
                 ]
             };
             case 'ds18b20': return {

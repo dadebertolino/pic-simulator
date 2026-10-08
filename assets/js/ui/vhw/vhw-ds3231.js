@@ -5,7 +5,7 @@ class VHWDS3231 {
     constructor(hw, cfg, id) {
         this.hw = hw;
         this.id = id;
-        this.tickRate = parseInt(cfg.tickRate) || 1000;
+        this.tickRate = parseInt(cfg.tickRate) || 1000000;
         this.name = 'DS3231 RTC [0x68]';
         this.el = null;
         this._device = null;
@@ -60,7 +60,6 @@ class VHWDS3231 {
 
     update() {
         if (!this._device) return;
-        this._device.tick(1);
         this._render();
     }
 

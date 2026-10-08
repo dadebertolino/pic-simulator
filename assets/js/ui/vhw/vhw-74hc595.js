@@ -33,8 +33,8 @@ class VHW74HC595 {
         if (!mssp || !mssp.spiBus) return;
         if (typeof Virtual74HC595 !== 'undefined') {
             this._device = new Virtual74HC595();
-            var idx = mssp.spiBus.devices.length;
-            mssp.spiBus.devices.push(this._device);
+            // Latch (RCLK) sul pin configurato: sale = uscite aggiornate
+            mssp.spiBus.attach(this._device, { port: this.csPort, pin: this.csPin });
         }
     }
 

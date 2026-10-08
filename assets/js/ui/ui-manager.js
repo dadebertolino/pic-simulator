@@ -1323,10 +1323,12 @@ MAIN:\n\
             // === COMPARATOR (PIC16F628A) ===
             {
                 category: 'Comparator', name: 'Voltage Comparator',
-                description: 'Compare AN0 vs AN1, result on RB0 (PIC16F628A)',
+                description: 'Two independent comparators, outputs on RB0/RB1 (PIC16F628A)',
                 source:
 '; Voltage Comparator - PIC16F628A\n\
-; Compare AN0 > AN1, RB0 shows C1OUT\n\
+; Mode 100: two independent comparators\n\
+;   C1: VIN- = AN0, VIN+ = AN3  ->  RB0 = 1 when AN3 > AN0\n\
+;   C2: VIN- = AN1, VIN+ = AN2  ->  RB1 = 1 when AN2 > AN1\n\
 ; Adjust sliders in Comparator panel\n\
 \n\
     LIST P=16F628A\n\
@@ -1341,17 +1343,24 @@ START:\n\
     CLRF TRISB\n\
     BCF STATUS, RP0\n\
 \n\
-    MOVLW 0x02            ; Mode 010: 4-input mux\n\
-    MOVWF CMCON           ; C1: VIN- = AN0, VIN+ = AN1\n\
+    MOVLW 0x04            ; CM2:CM0 = 100\n\
+    MOVWF CMCON\n\
     CLRF PORTB\n\
 \n\
 MAIN:\n\
-    BTFSC CMCON, 6        ; Test C1OUT\n\
+    BTFSC CMCON, 6        ; C1OUT\n\
     GOTO C1_HIGH\n\
     BCF PORTB, 0\n\
-    GOTO MAIN\n\
+    GOTO TEST_C2\n\
 C1_HIGH:\n\
     BSF PORTB, 0\n\
+TEST_C2:\n\
+    BTFSC CMCON, 7        ; C2OUT\n\
+    GOTO C2_HIGH\n\
+    BCF PORTB, 1\n\
+    GOTO MAIN\n\
+C2_HIGH:\n\
+    BSF PORTB, 1\n\
     GOTO MAIN\n\
 \n\
     END'
@@ -1615,6 +1624,7 @@ D2: DECFSZ DL2, F\n\
 \n\
     CBLOCK 0x0C\n\
     DIG_IDX\n\
+    SHIFT_CNT\n\
     DL1\n\
     ENDC\n\
 \n\
@@ -1670,10 +1680,11 @@ SHOW_DIGIT:\n\
     MOVF DIG_IDX, W\n\
     BTFSC STATUS, Z\n\
     GOTO SEL_DONE\n\
+    MOVWF SHIFT_CNT        ; DL1 <<= DIG_IDX\n\
 SHIFT_SEL:\n\
     BCF STATUS, C\n\
     RLF DL1, F\n\
-    DECFSZ DIG_IDX, W\n\
+    DECFSZ SHIFT_CNT, F\n\
     GOTO SHIFT_SEL\n\
 SEL_DONE:\n\
     COMF DL1, W\n\
@@ -1764,6 +1775,9 @@ WAIT:\n\
     BCF STATUS, C\n\
     RRF ADC_VAL, F\n\
 \n\
+    MOVF ADRESH, F        ; ADRESH = 0: bar off\n\
+    BTFSS STATUS, Z\n\
+    INCF ADC_VAL, F       ; 1-255 -> 1-8 LEDs\n\
     MOVF ADC_VAL, W\n\
     CALL BAR_TABLE\n\
     MOVWF PORTB\n\
@@ -2190,6 +2204,7 @@ LCD_RS   EQU 0x01         ; RS bit (P0)\n\
     CBLOCK 0x20\n\
     LCD_TEMP\n\
     I2C_DATA\n\
+    PULSE_DATA\n\
     DL1\n\
     DL2\n\
     ENDC\n\
@@ -2325,13 +2340,13 @@ LCD_I2C_NIBBLE:\n\
 \n\
 ; Pulse EN: send data with EN=1 then EN=0 via I2C\n\
 I2C_LCD_PULSE:\n\
-    MOVWF I2C_DATA\n\
+    MOVWF PULSE_DATA      ; I2C_WRITE_BYTE overwrites I2C_DATA\n\
     ; Send with EN=1\n\
-    MOVF I2C_DATA, W\n\
+    MOVF PULSE_DATA, W\n\
     IORLW LCD_EN\n\
     CALL I2C_WRITE_BYTE\n\
     ; Send with EN=0\n\
-    MOVF I2C_DATA, W\n\
+    MOVF PULSE_DATA, W\n\
     CALL I2C_WRITE_BYTE\n\
     RETURN\n\
 \n\
@@ -4445,23 +4460,22 @@ DL0:\n\
 '; Servo Sweep - PIC16F84A\n\
 ; >> Add "RC Servo Motor" Port=B, Pin=0 in Virtual HW\n\
 ;\n\
-; Generates 50Hz PWM on RB0 with variable pulse width\n\
-; Sweeps from 0° (500us) to 180° (2500us) and back\n\
+; Generates a ~50Hz pulse train on RB0 with variable pulse width\n\
+; Sweeps from 0 deg (500us) to 180 deg (2500us) and back\n\
 ;\n\
-; At 4MHz: 1 cycle = 1us\n\
-; Period = 20ms = 20000 cycles\n\
-; Pulse: 500-2500 cycles\n\
+; At 4MHz: 1 instruction cycle = 1us\n\
+; Delay loops take 3 cycles per step, so the pulse width is kept\n\
+; in 3us units: 500us = 167 (0x00A7), 2500us = 833 (0x0341)\n\
 \n\
     LIST P=16F84A\n\
 \n\
     CBLOCK 0x0C\n\
-    PULSE_H         ; Pulse width high byte\n\
-    PULSE_L         ; Pulse width low byte\n\
+    PULSE_H         ; Pulse width, 3us units (high byte)\n\
+    PULSE_L         ; Pulse width, 3us units (low byte)\n\
     STEP_DIR        ; 0=up, 1=down\n\
     DL1\n\
     DL2\n\
     DL3\n\
-    TEMP\n\
     ENDC\n\
 \n\
     ORG 0x00\n\
@@ -4475,93 +4489,79 @@ START:\n\
     BCF STATUS, RP0\n\
     CLRF PORTB\n\
 \n\
-    ; Start at 0° (pulse = 500us)\n\
-    MOVLW 0x01\n\
-    MOVWF PULSE_H         ; 0x01F4 = 500\n\
-    MOVLW 0xF4\n\
+    ; Start at 0 deg (500us = 167 steps)\n\
+    CLRF PULSE_H\n\
+    MOVLW 0xA7\n\
     MOVWF PULSE_L\n\
     CLRF STEP_DIR\n\
 \n\
 MAIN:\n\
-    ; === Generate one PWM pulse ===\n\
-    ; HIGH phase: pulse width\n\
-    BSF PORTB, 0\n\
+    ; === One servo frame ===\n\
+    BSF PORTB, 0          ; HIGH: pulse width\n\
     CALL PULSE_DELAY\n\
-    BCF PORTB, 0\n\
-\n\
-    ; LOW phase: fill rest of 20ms period\n\
+    BCF PORTB, 0          ; LOW: rest of the ~20ms period\n\
     CALL PERIOD_DELAY\n\
 \n\
-    ; === Update pulse width (sweep) ===\n\
-    ; Each frame: add/subtract 20us (≈1° step)\n\
+    ; === Update pulse width: 7 steps = 21us (about 2 deg) ===\n\
     BTFSC STEP_DIR, 0\n\
     GOTO SWEEP_DOWN\n\
 \n\
 SWEEP_UP:\n\
-    MOVLW 0x14            ; +20\n\
+    MOVLW 0x07\n\
     ADDWF PULSE_L, F\n\
     BTFSC STATUS, C\n\
     INCF PULSE_H, F\n\
-    ; Check if >= 2500 (0x09C4)\n\
-    MOVLW 0x09\n\
-    SUBWF PULSE_H, W\n\
-    BTFSS STATUS, Z\n\
-    GOTO CHECK_H_UP\n\
-    MOVLW 0xC4\n\
-    SUBWF PULSE_L, W\n\
-    BTFSC STATUS, C\n\
-    BSF STEP_DIR, 0       ; Reverse direction\n\
+    ; Reverse at >= 833 (0x0341)\n\
+    MOVLW 0x03\n\
+    SUBWF PULSE_H, W      ; C=0: H < 3\n\
+    BTFSS STATUS, C\n\
     GOTO MAIN\n\
-CHECK_H_UP:\n\
-    BTFSC STATUS, C\n\
-    BSF STEP_DIR, 0       ; H > 9 → reverse\n\
+    BTFSS STATUS, Z       ; H > 3\n\
+    GOTO GO_DOWN\n\
+    MOVLW 0x41\n\
+    SUBWF PULSE_L, W      ; C=1: L >= 0x41\n\
+    BTFSS STATUS, C\n\
+    GOTO MAIN\n\
+GO_DOWN:\n\
+    BSF STEP_DIR, 0\n\
     GOTO MAIN\n\
 \n\
 SWEEP_DOWN:\n\
-    MOVLW 0x14            ; -20\n\
+    MOVLW 0x07\n\
     SUBWF PULSE_L, F\n\
     BTFSS STATUS, C\n\
     DECF PULSE_H, F\n\
-    ; Check if <= 500 (0x01F4)\n\
-    MOVLW 0x02\n\
-    SUBWF PULSE_H, W\n\
-    BTFSC STATUS, C\n\
-    GOTO MAIN             ; H >= 2, still OK\n\
-    ; H < 2: check if H=1\n\
-    MOVF PULSE_H, W\n\
-    BTFSS STATUS, Z\n\
-    GOTO CHECK_MINL       ; H=1, check L\n\
-    ; H=0: underflow, reset to min\n\
-    MOVLW 0x01\n\
-    MOVWF PULSE_H\n\
-    MOVLW 0xF4\n\
-    MOVWF PULSE_L\n\
-    BCF STEP_DIR, 0       ; Reverse to up\n\
+    ; Reverse at <= 167 (0x00A7)\n\
+    MOVF PULSE_H, F\n\
+    BTFSS STATUS, Z       ; H > 0\n\
     GOTO MAIN\n\
-CHECK_MINL:\n\
-    MOVLW 0xF4\n\
-    SUBWF PULSE_L, W\n\
-    BTFSS STATUS, C\n\
-    BCF STEP_DIR, 0       ; L < 0xF4 with H=1 → reverse\n\
+    MOVF PULSE_L, W\n\
+    SUBLW 0xA7            ; C=1: L <= 0xA7\n\
+    BTFSC STATUS, C\n\
+    BCF STEP_DIR, 0\n\
     GOTO MAIN\n\
 \n\
-; === Delay for pulse width (PULSE_H:PULSE_L cycles) ===\n\
+; === Delay of PULSE_H:PULSE_L steps, 3 cycles each ===\n\
 PULSE_DELAY:\n\
     MOVF PULSE_H, W\n\
     MOVWF DL2\n\
     MOVF PULSE_L, W\n\
     MOVWF DL1\n\
+    BTFSC STATUS, Z       ; L = 0: go straight to the high byte\n\
+    GOTO PD_HIGH\n\
 PD1:\n\
     DECFSZ DL1, F\n\
     GOTO PD1\n\
-    DECFSZ DL2, F\n\
-    GOTO PD1\n\
+PD_HIGH:\n\
+    MOVF DL2, F\n\
+    BTFSC STATUS, Z\n\
     RETURN\n\
+    DECF DL2, F           ; DL1 is 0: 256 more steps\n\
+    GOTO PD1\n\
 \n\
-; === Delay for rest of 20ms period ===\n\
-; Approx: 20000 - pulse ≈ 18000 cycles\n\
+; === Rest of the period: 23 x ~770 cycles = ~17.7ms ===\n\
 PERIOD_DELAY:\n\
-    MOVLW 0x46            ; ~70 x 256 ≈ 18000\n\
+    MOVLW 0x17\n\
     MOVWF DL3\n\
 PER1:\n\
     MOVLW 0xFF\n\
@@ -4583,7 +4583,10 @@ PER2:\n\
 ; >> Add "RC Servo Motor" Port=B, Pin=0 in Virtual HW\n\
 ; >> Adjust AN0 slider in ADC panel to control servo\n\
 ;\n\
-; AN0 (0-255) maps to pulse (500-2500us)\n\
+; AN0 (ADRESH 0-255) maps to pulse 500-2500us (0-180 deg)\n\
+; Delay loops take 3 cycles per step: the pulse is kept in 3us units\n\
+;   pulse = 158 + ADC*2 + ADC/2 + ADC/8   (with ~27 cycles of call overhead:\n\
+;   ADC 0 = 500us, ADC 255 = 2505us)\n\
 \n\
     LIST P=16F877A\n\
 \n\
@@ -4619,50 +4622,62 @@ WAIT_ADC:\n\
     MOVF ADRESH, W\n\
     MOVWF ADC_VAL\n\
 \n\
-    ; Map ADC (0-255) to pulse (500-2500)\n\
-    ; pulse = 500 + (ADC * 8) approximately\n\
-    ; ADC * 8 = shift left 3\n\
-    BCF STATUS, C\n\
-    RLF ADC_VAL, W        ; x2\n\
-    MOVWF PULSE_L\n\
+    ; PULSE = ADC * 2\n\
     CLRF PULSE_H\n\
-    BTFSC STATUS, C\n\
-    INCF PULSE_H, F\n\
     BCF STATUS, C\n\
-    RLF PULSE_L, F        ; x4\n\
+    RLF ADC_VAL, W\n\
+    MOVWF PULSE_L\n\
     RLF PULSE_H, F\n\
+    ; + ADC / 2\n\
     BCF STATUS, C\n\
-    RLF PULSE_L, F        ; x8\n\
-    RLF PULSE_H, F\n\
-    ; Add 500 (0x01F4)\n\
-    MOVLW 0xF4\n\
+    RRF ADC_VAL, F\n\
+    MOVF ADC_VAL, W\n\
     ADDWF PULSE_L, F\n\
     BTFSC STATUS, C\n\
     INCF PULSE_H, F\n\
-    MOVLW 0x01\n\
-    ADDWF PULSE_H, F\n\
+    ; + ADC / 8\n\
+    BCF STATUS, C\n\
+    RRF ADC_VAL, F\n\
+    BCF STATUS, C\n\
+    RRF ADC_VAL, F\n\
+    MOVF ADC_VAL, W\n\
+    ADDWF PULSE_L, F\n\
+    BTFSC STATUS, C\n\
+    INCF PULSE_H, F\n\
+    ; + 158 (474us + overhead = 500us)\n\
+    MOVLW 0x9E\n\
+    ADDWF PULSE_L, F\n\
+    BTFSC STATUS, C\n\
+    INCF PULSE_H, F\n\
 \n\
-    ; Generate PWM pulse\n\
+    ; Generate one servo frame\n\
     BSF PORTB, 0          ; HIGH\n\
     CALL PULSE_DLY\n\
     BCF PORTB, 0          ; LOW\n\
     CALL PERIOD_DLY\n\
     GOTO MAIN\n\
 \n\
+; === Delay of PULSE_H:PULSE_L steps, 3 cycles each ===\n\
 PULSE_DLY:\n\
     MOVF PULSE_H, W\n\
     MOVWF DL2\n\
     MOVF PULSE_L, W\n\
     MOVWF DL1\n\
+    BTFSC STATUS, Z\n\
+    GOTO PD_HIGH\n\
 PD1:\n\
     DECFSZ DL1, F\n\
     GOTO PD1\n\
-    DECFSZ DL2, F\n\
-    GOTO PD1\n\
+PD_HIGH:\n\
+    MOVF DL2, F\n\
+    BTFSC STATUS, Z\n\
     RETURN\n\
+    DECF DL2, F\n\
+    GOTO PD1\n\
 \n\
+; === Rest of the period: ~17.7ms ===\n\
 PERIOD_DLY:\n\
-    MOVLW 0x46\n\
+    MOVLW 0x17\n\
     MOVWF DL3\n\
 PR1:\n\
     MOVLW 0xFF\n\

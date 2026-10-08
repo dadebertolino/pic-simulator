@@ -6,7 +6,9 @@ class VHWMAX7219 {
     constructor(hw, cfg, id) {
         this.hw = hw;
         this.id = id;
-        this.name = 'MAX7219 8-Digit';
+        this.csPin = parseInt(cfg.csPin) || 0;
+        this.csPort = cfg.csPort || 'A';
+        this.name = 'MAX7219 8-Digit [CS=R' + this.csPort + this.csPin + ']';
         this.el = null;
         this._device = null;
     }
@@ -30,7 +32,7 @@ class VHWMAX7219 {
         if (!mssp || !mssp.spiBus) return;
         if (typeof VirtualMAX7219 !== 'undefined') {
             this._device = new VirtualMAX7219();
-            mssp.spiBus.devices.push(this._device);
+            mssp.spiBus.attach(this._device, { port: this.csPort, pin: this.csPin });
         }
     }
 
