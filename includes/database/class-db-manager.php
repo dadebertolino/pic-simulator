@@ -773,7 +773,7 @@ class DB_Manager {
         
         return $this->db->get_results(
             $this->db->prepare(
-                "SELECT u.ID, u.display_name, u.user_email, cs.status, cs.joined_at
+                "SELECT cs.student_id, u.ID, u.display_name, u.user_email, cs.status, cs.joined_at
                  FROM {$this->class_students} cs
                  INNER JOIN {$this->db->users} u ON cs.student_id = u.ID
                  WHERE $where

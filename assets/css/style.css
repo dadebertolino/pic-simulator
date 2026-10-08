@@ -273,6 +273,7 @@
 
 .pic-btn-primary:hover:not(:disabled) {
     background: var(--pic-accent);
+    color: #0f172a; /* prevale sul testo bianco di .pic-btn:hover */
 }
 
 /* Testo in tinte chiare: le versioni sature arrivano a 4,2:1 sullo sfondo velato */
@@ -455,7 +456,7 @@
 .pic-error-panel .error-header {
     padding: 8px 12px;
     background: rgba(255, 68, 102, 0.2);
-    color: var(--pic-error);
+    color: #fca5a5; /* #f87171 sul fondo rosato non arriva a 4,5:1 */
     font-weight: 600;
     font-size: 12px;
     position: sticky;
@@ -477,7 +478,7 @@
 }
 
 .pic-error-panel .error-line {
-    color: var(--pic-error);
+    color: #fca5a5;
     font-weight: 600;
     min-width: 60px;
     font-family: var(--pic-font-mono);

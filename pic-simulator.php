@@ -63,6 +63,9 @@ class PIC_Simulator_Plugin {
     private $assets_done = false;
     private $test_assets_done = false;
     
+    /** Il simulatore e' gia' stato inserito in questa pagina. */
+    private $simulator_rendered = false;
+    
     public static function get_instance() {
         if (null === self::$instance) {
             self::$instance = new self();
@@ -469,6 +472,15 @@ class PIC_Simulator_Plugin {
      * Renderizza shortcode
      */
     public function render_shortcode($atts) {
+        // L'interfaccia usa ID fissi: un secondo simulatore nella stessa
+        // pagina duplicherebbe gli ID e resterebbe inerte. Meglio dirlo.
+        if ($this->simulator_rendered) {
+            return '<p class="picsim-notice"><strong>WebPicSimulator:</strong> '
+                 . esc_html__('e\' possibile inserire un solo simulatore per pagina.', 'webpicsimulator')
+                 . '</p>';
+        }
+        $this->simulator_rendered = true;
+        
         $atts = shortcode_atts([
             'height' => '800px',
             'width' => '100%',

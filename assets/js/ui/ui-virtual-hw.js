@@ -488,7 +488,36 @@ class UIVirtualHW {
         for (var i = 0; i < this.components.length; i++) this.components[i].update();
     }
 
-    setCpu(cpu) { this.cpu = cpu; }
+    /**
+     * Nuova CPU (cambio di device): i componenti sono agganciati alla
+     * vecchia (bus, GPIO, hook per ciclo), quindi si ricreano sulla nuova
+     * con la stessa configurazione.
+     */
+    setCpu(cpu) {
+        if (cpu === this.cpu) return;
+        this.cpu = cpu;
+        if (!this.components.length) return;
+        var configs = this.components.map(function(c) { return { type: c._vhwType, config: c._vhwConfig }; });
+        this.clearAll();
+        for (var i = 0; i < configs.length; i++) this.addComponent(configs[i].type, configs[i].config);
+    }
+
+    /**
+     * Esegue fn a ogni ciclo istruzione (pseudo-periferica della CPU), per i
+     * componenti che devono vedere ogni fronte dei pin: campionare a ogni
+     * aggiornamento dello schermo ne perde quasi tutti.
+     * @returns {function} rimuove l'aggancio
+     */
+    onEveryCycle(fn) {
+        var cpu = this.cpu;
+        var name = 'VHW_HOOK_' + (this._hookId = (this._hookId || 0) + 1);
+        cpu.addPeripheral({
+            name: name, runsInSleep: false,
+            getRegisters: function() { return []; },
+            tick: fn, reset: function() {}, getState: function() { return {}; }
+        });
+        return function() { cpu.peripherals.unregister(name); };
+    }
 
     _checkAddrConflict(type, config) {
         var addr = this._resolveAddr(type, config);

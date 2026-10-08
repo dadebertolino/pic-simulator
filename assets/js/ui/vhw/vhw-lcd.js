@@ -62,10 +62,25 @@ class VHWLCD {
         container.appendChild(this.el);
         this._renderScreen();
         this._renderDebug();
+
+        // I pin si campionano a ogni ciclo: a ogni aggiornamento dello
+        // schermo si perdevano quasi tutti gli impulsi di EN.
+        var self = this;
+        this._unhook = this.hw.onEveryCycle(function() { self._sample(); });
     }
 
     update() {
-        if (!this.el) return;
+        if (!this.el || !this._dirty) return;
+        this._dirty = false;
+        this._renderScreen();
+        this._renderDebug();
+    }
+
+    destroy() {
+        if (this._unhook) this._unhook();
+    }
+
+    _sample() {
         var en, rs, data;
         if (this.mode === 8) {
             var ctrl = this.hw.getPortByte(this.ctrlPort);
@@ -79,17 +94,28 @@ class VHWLCD {
             data = (portVal >> this.dataBitsStart) & 0x0F;
         }
 
-        if (en && !this.prevEN) {
-            if (this.mode === 4) {
-                if (this.nibbleHigh) { this._highNibble = data << 4; this.nibbleHigh = false; }
-                else { this._process(rs, this._highNibble | (data & 0x0F)); this.nibbleHigh = true; }
-            } else {
-                this._process(rs, data);
-            }
-            this._renderScreen();
-            this._renderDebug();
+        // L'HD44780 legge il bus sul fronte di discesa di EN
+        if (!en && this.prevEN) {
+            if (this.mode === 4) this._nibble(rs, data & 0x0F);
+            else this._process(rs, data);
+            this._dirty = true;
         }
         this.prevEN = en;
+    }
+
+    /**
+     * Interfaccia a 4 bit. Dopo l'accensione il controller e' a 8 bit: i
+     * nibble di inizializzazione (0x3, 0x3, 0x3, 0x2) sono comandi interi;
+     * dal "function set" con DL = 0 i byte arrivano in due nibble.
+     */
+    _nibble(rs, nibble) {
+        if (!this.fourBit) {
+            this._process(rs, nibble << 4);
+            if (!rs && nibble === 0x2) { this.fourBit = true; this.nibbleHigh = true; }
+            return;
+        }
+        if (this.nibbleHigh) { this._highNibble = nibble << 4; this.nibbleHigh = false; }
+        else { this._process(rs, this._highNibble | nibble); this.nibbleHigh = true; }
     }
 
     _process(rs, data) {
@@ -167,8 +193,6 @@ class VHWLCD {
         html += '</div>';
         el.innerHTML = html;
     }
-
-    destroy() {}
 }
 
 // ================================================================
@@ -246,34 +270,48 @@ class VHWLCDI2C {
             this._pcfDevice = new VirtualPCF8574(a2a1a0, isTypeA);
             mssp.i2cBus.attach(addr, this._pcfDevice);
         }
+        // Ogni scrittura sul PCF8574 e' un campione dei pin dell'LCD: a ogni
+        // aggiornamento dello schermo se ne perdevano quasi tutti.
+        if (this._pcfDevice) {
+            var self = this;
+            this._pcfDevice.onOutputChange = function(value) { self._sample(value); };
+        }
+    }
+
+    _sample(data) {
+        var rs = data & 0x01;
+        var en = (data >> 2) & 0x01;
+        this.backlight = !!((data >> 3) & 0x01);
+        if (!en && this.prevEN) {
+            this._nibble(rs, (data >> 4) & 0x0F);
+            this._dirty = true;
+        }
+        this.prevEN = en;
     }
 
     update() {
         if (!this.el) return;
         var data = this._pcfDevice ? (this._pcfDevice.outputLatch || 0) : 0;
-        var rs = data & 0x01;
-        var en = (data >> 2) & 0x01;
-        this.backlight = !!((data >> 3) & 0x01);
-        var nibble = (data >> 4) & 0x0F;
-
-        if (en && !this.prevEN) {
-            if (this.nibbleHigh) { this._highNibble = nibble << 4; this.nibbleHigh = false; }
-            else {
-                VHWLCD.prototype._process.call(this, rs, this._highNibble | nibble);
-                this.nibbleHigh = true;
-            }
+        if (this._dirty) {
+            this._dirty = false;
             this._renderScreen();
-            VHWLCD.prototype._renderDebug.call(this);
+            this._renderDebug();
         }
-        this.prevEN = en;
 
         var statusEl = document.getElementById(this.id + '-status');
         if (statusEl) statusEl.textContent = 'I\u00B2C: 0x' + this.i2cAddr.toString(16).toUpperCase() + ' | BL: ' + (this.backlight ? 'ON' : 'OFF') + ' | PCF8574: 0x' + data.toString(16).toUpperCase().padStart(2, '0');
     }
 
-    _renderScreen() {
-        VHWLCD.prototype._renderScreen.call(this);
-    }
+    // Stessa logica HD44780 dell'LCD parallelo. Si usano i metodi di VHWLCD
+    // su questo oggetto: chiamati con .call(this) cercavano this._process e
+    // this._decodeCmd, che qui non esistevano, e si fermavano al primo comando.
+    _renderScreen() { VHWLCD.prototype._renderScreen.call(this); }
+    _renderDebug() { VHWLCD.prototype._renderDebug.call(this); }
+    _process(rs, data) { VHWLCD.prototype._process.call(this, rs, data); }
+    _decodeCmd(data) { return VHWLCD.prototype._decodeCmd.call(this, data); }
+    _nibble(rs, nibble) { VHWLCD.prototype._nibble.call(this, rs, nibble); }
 
-    destroy() {}
+    destroy() {
+        if (this._pcfDevice) this._pcfDevice.onOutputChange = null;
+    }
 }
