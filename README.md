@@ -218,8 +218,8 @@ Cosa resta sul server:
   ognuno legge solo i propri
 - La cache dell'updater
 
-Disinstallando il plugin si cancellano tabelle, opzioni e capability; la cartella
-`pic-simulator-projects` resta e va rimossa a mano.
+Disinstallando il plugin (Elimina, non solo Disattiva) si cancellano tabelle, opzioni, capability
+e la cartella `pic-simulator-projects`.
 
 ---
 
@@ -355,7 +355,9 @@ programma con `LIST P=` sceglie il device; layout su telefono; accessibilità WC
 secondo simulatore nella stessa pagina mostra un avviso.
 
 **Didattica**: l'elenco degli studenti di una classe dava id 0 a tutti (le azioni del docente su
-uno studente non funzionavano).
+uno studente non funzionavano); con i permalink semplici la dashboard del docente non caricava.
+
+**Disinstallazione**: cancella anche i progetti salvati dal simulatore in `uploads/`.
 
 **Test:** 250 unit test (ogni istruzione e periferica sui tre device, assemblatore, motore, ognuno
 dei 53 esempi con il suo hardware virtuale) e 61 E2E (simulatore, hardware virtuale, accessibilità,

@@ -98,13 +98,17 @@ $wpdb->query(
 );
 
 // =============================================================================
-// RIMOZIONE FILE CARICATI (opzionale, commentato per sicurezza)
+// RIMOZIONE PROGETTI SALVATI DAL SIMULATORE
 // =============================================================================
 
-// Se vuoi rimuovere anche i file ZIP dei progetti esportati:
-// $upload_dir = wp_upload_dir();
-// $picsim_dir = $upload_dir['basedir'] . '/picsim-exports';
-// if (is_dir($picsim_dir)) {
-//     array_map('unlink', glob("$picsim_dir/*"));
-//     rmdir($picsim_dir);
-// }
+// Pulsante Save del simulatore: file JSON in uploads/pic-simulator-projects/,
+// una cartella per utente. Si cancellano con le tabelle: sono dati degli utenti.
+$picsim_upload_dir = wp_upload_dir();
+$picsim_projects_dir = trailingslashit($picsim_upload_dir['basedir']) . 'pic-simulator-projects';
+if (is_dir($picsim_projects_dir)) {
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    if (WP_Filesystem()) {
+        global $wp_filesystem;
+        $wp_filesystem->rmdir($picsim_projects_dir, true);
+    }
+}
