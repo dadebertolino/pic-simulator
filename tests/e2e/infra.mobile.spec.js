@@ -10,42 +10,40 @@ test.describe( 'telefono', () => {
 		const errors = await openSimulator( page );
 		await setSource( page, '    MOVLW 0x2A\n    GOTO $' );
 		await assemble( page );
-		await expect( page.locator( '#status-text' ) ).toHaveText( /^Assemblato/ );
+		await expect( page.locator( '#status-text' ) ).toHaveText( 'Assembled' );
 
 		await button( page, 'step' ).tap();
 		await expect( page.locator( '#reg-w' ) ).toHaveText( '2A' );
 		expect( errors ).toEqual( [] );
 	} );
 
-	test( 'la pagina non scorre in orizzontale', async ( { page } ) => {
+	test( 'ne\' la pagina ne\' il simulatore scorrono in orizzontale', async ( { page } ) => {
+		// Regressione: la testata sbordava di ~420 px e copriva l'interfaccia.
 		await openSimulator( page );
-		const overflow = await page.evaluate( () => document.documentElement.scrollWidth - window.innerWidth );
-		expect( overflow ).toBeLessThanOrEqual( 0 );
+		const overflow = await page.evaluate( () => {
+			const app = document.getElementById( 'pic-simulator-app' );
+			return {
+				page: document.documentElement.scrollWidth - window.innerWidth,
+				app: app.scrollWidth - app.clientWidth,
+				header: document.querySelector( '.pic-header' ).scrollWidth - app.clientWidth,
+			};
+		} );
+		expect( overflow.page ).toBeLessThanOrEqual( 0 );
+		expect( overflow.app ).toBeLessThanOrEqual( 0 );
+		expect( overflow.header ).toBeLessThanOrEqual( 0 );
 	} );
 
-	test( 'editor, pannelli e stato stanno tutti nel simulatore', async ( { page } ) => {
-		// Regressione: l'editor cresceva col sorgente e spingeva i pannelli
-		// fuori dal contenitore, che li nascondeva (altezza 0).
+	test( 'testata, editor, registri e stato sono visibili', async ( { page } ) => {
 		await openSimulator( page );
-		const boxes = await page.evaluate( () => {
-			const box = ( sel ) => document.querySelector( sel ).getBoundingClientRect();
-			const c = box( '#pic-simulator' );
-			return [ '.picsim__editor-panel', '.picsim__panels', '#reg-w', '#status-text' ].map( ( sel ) => {
-				const r = box( sel );
-				return { sel, height: r.height, inside: r.top >= c.top && r.bottom <= c.bottom + 1 };
-			} );
-		} );
-		for ( const b of boxes ) {
-			expect( b.inside, `${ b.sel } dentro il simulatore` ).toBe( true );
-			expect( b.height, `${ b.sel } visibile` ).toBeGreaterThan( 0 );
+		for ( const sel of [ '#device-select', '#run-speed', '#btn-assemble', '#code-editor', '#reg-w', '#status-text' ] ) {
+			await expect( page.locator( sel ), sel ).toBeVisible();
 		}
-		expect( boxes[ 1 ].height ).toBeGreaterThan( 150 );
 	} );
 
 	test( 'nessun problema di accessibilita\' (axe)', async ( { page } ) => {
 		await openSimulator( page );
 		const results = await new AxeBuilder( { page } )
-			.include( '#pic-simulator' )
+			.include( '#pic-simulator-app' )
 			.withTags( [ 'wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa' ] )
 			.analyze();
 		expect( results.violations.map( ( v ) => v.id ) ).toEqual( [] );

@@ -1,0 +1,408 @@
+{
+  "family": "PIC16",
+  "description": "PIC16 Mid-Range 8-bit Microcontrollers",
+  "version": "1.0.0",
+  "author": "Prof. D.Bertolino",
+  
+  "architecture": {
+    "type": "Harvard",
+    "dataBus": 8,
+    "programWordSize": 14,
+    "stackDepth": 8,
+    "registerFileSize": 128,
+    "bankSize": 128,
+    "maxBanks": 4
+  },
+
+  "instructionSet": {
+    "name": "PIC16 Mid-Range",
+    "totalInstructions": 35,
+    "wordSize": 14,
+    "cycleTime": "4 * Tosc",
+    
+    "byteOriented": [
+      {
+        "mnemonic": "ADDWF",
+        "syntax": "ADDWF f,d",
+        "opcode": "000111dfffffff",
+        "operation": "W + f Ã¢â€ â€™ dest",
+        "statusAffected": ["C", "DC", "Z"],
+        "cycles": 1,
+        "description": "Add W and f"
+      },
+      {
+        "mnemonic": "ANDWF",
+        "syntax": "ANDWF f,d",
+        "opcode": "000101dfffffff",
+        "operation": "W AND f Ã¢â€ â€™ dest",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "AND W with f"
+      },
+      {
+        "mnemonic": "CLRF",
+        "syntax": "CLRF f",
+        "opcode": "0000011fffffff",
+        "operation": "00h Ã¢â€ â€™ f, 1 Ã¢â€ â€™ Z",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Clear f"
+      },
+      {
+        "mnemonic": "CLRW",
+        "syntax": "CLRW",
+        "opcode": "00000100000011",
+        "operation": "00h Ã¢â€ â€™ W, 1 Ã¢â€ â€™ Z",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Clear W"
+      },
+      {
+        "mnemonic": "COMF",
+        "syntax": "COMF f,d",
+        "opcode": "001001dfffffff",
+        "operation": "NOT f Ã¢â€ â€™ dest",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Complement f"
+      },
+      {
+        "mnemonic": "DECF",
+        "syntax": "DECF f,d",
+        "opcode": "000011dfffffff",
+        "operation": "f - 1 Ã¢â€ â€™ dest",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Decrement f"
+      },
+      {
+        "mnemonic": "DECFSZ",
+        "syntax": "DECFSZ f,d",
+        "opcode": "001011dfffffff",
+        "operation": "f - 1 Ã¢â€ â€™ dest, skip if 0",
+        "statusAffected": [],
+        "cycles": "1(2)",
+        "description": "Decrement f, Skip if Zero"
+      },
+      {
+        "mnemonic": "INCF",
+        "syntax": "INCF f,d",
+        "opcode": "001010dfffffff",
+        "operation": "f + 1 Ã¢â€ â€™ dest",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Increment f"
+      },
+      {
+        "mnemonic": "INCFSZ",
+        "syntax": "INCFSZ f,d",
+        "opcode": "001111dfffffff",
+        "operation": "f + 1 Ã¢â€ â€™ dest, skip if 0",
+        "statusAffected": [],
+        "cycles": "1(2)",
+        "description": "Increment f, Skip if Zero"
+      },
+      {
+        "mnemonic": "IORWF",
+        "syntax": "IORWF f,d",
+        "opcode": "000100dfffffff",
+        "operation": "W OR f Ã¢â€ â€™ dest",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Inclusive OR W with f"
+      },
+      {
+        "mnemonic": "MOVF",
+        "syntax": "MOVF f,d",
+        "opcode": "001000dfffffff",
+        "operation": "f Ã¢â€ â€™ dest",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Move f"
+      },
+      {
+        "mnemonic": "MOVWF",
+        "syntax": "MOVWF f",
+        "opcode": "0000001fffffff",
+        "operation": "W Ã¢â€ â€™ f",
+        "statusAffected": [],
+        "cycles": 1,
+        "description": "Move W to f"
+      },
+      {
+        "mnemonic": "NOP",
+        "syntax": "NOP",
+        "opcode": "00000000000000",
+        "operation": "No operation",
+        "statusAffected": [],
+        "cycles": 1,
+        "description": "No Operation"
+      },
+      {
+        "mnemonic": "RLF",
+        "syntax": "RLF f,d",
+        "opcode": "001101dfffffff",
+        "operation": "Rotate left through Carry",
+        "statusAffected": ["C"],
+        "cycles": 1,
+        "description": "Rotate Left f through Carry"
+      },
+      {
+        "mnemonic": "RRF",
+        "syntax": "RRF f,d",
+        "opcode": "001100dfffffff",
+        "operation": "Rotate right through Carry",
+        "statusAffected": ["C"],
+        "cycles": 1,
+        "description": "Rotate Right f through Carry"
+      },
+      {
+        "mnemonic": "SUBWF",
+        "syntax": "SUBWF f,d",
+        "opcode": "000010dfffffff",
+        "operation": "f - W Ã¢â€ â€™ dest",
+        "statusAffected": ["C", "DC", "Z"],
+        "cycles": 1,
+        "description": "Subtract W from f"
+      },
+      {
+        "mnemonic": "SWAPF",
+        "syntax": "SWAPF f,d",
+        "opcode": "001110dfffffff",
+        "operation": "f<3:0> Ã¢â€ â€ f<7:4> Ã¢â€ â€™ dest",
+        "statusAffected": [],
+        "cycles": 1,
+        "description": "Swap nibbles in f"
+      },
+      {
+        "mnemonic": "XORWF",
+        "syntax": "XORWF f,d",
+        "opcode": "000110dfffffff",
+        "operation": "W XOR f Ã¢â€ â€™ dest",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Exclusive OR W with f"
+      }
+    ],
+
+    "bitOriented": [
+      {
+        "mnemonic": "BCF",
+        "syntax": "BCF f,b",
+        "opcode": "0100bbbfffffff",
+        "operation": "0 Ã¢â€ â€™ f<b>",
+        "statusAffected": [],
+        "cycles": 1,
+        "description": "Bit Clear f"
+      },
+      {
+        "mnemonic": "BSF",
+        "syntax": "BSF f,b",
+        "opcode": "0101bbbfffffff",
+        "operation": "1 Ã¢â€ â€™ f<b>",
+        "statusAffected": [],
+        "cycles": 1,
+        "description": "Bit Set f"
+      },
+      {
+        "mnemonic": "BTFSC",
+        "syntax": "BTFSC f,b",
+        "opcode": "0110bbbfffffff",
+        "operation": "Skip if f<b> = 0",
+        "statusAffected": [],
+        "cycles": "1(2)",
+        "description": "Bit Test f, Skip if Clear"
+      },
+      {
+        "mnemonic": "BTFSS",
+        "syntax": "BTFSS f,b",
+        "opcode": "0111bbbfffffff",
+        "operation": "Skip if f<b> = 1",
+        "statusAffected": [],
+        "cycles": "1(2)",
+        "description": "Bit Test f, Skip if Set"
+      }
+    ],
+
+    "literal": [
+      {
+        "mnemonic": "ADDLW",
+        "syntax": "ADDLW k",
+        "opcode": "11111xkkkkkkkk",
+        "operation": "W + k Ã¢â€ â€™ W",
+        "statusAffected": ["C", "DC", "Z"],
+        "cycles": 1,
+        "description": "Add literal and W"
+      },
+      {
+        "mnemonic": "ANDLW",
+        "syntax": "ANDLW k",
+        "opcode": "111001kkkkkkkk",
+        "operation": "W AND k Ã¢â€ â€™ W",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "AND literal with W"
+      },
+      {
+        "mnemonic": "IORLW",
+        "syntax": "IORLW k",
+        "opcode": "111000kkkkkkkk",
+        "operation": "W OR k Ã¢â€ â€™ W",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Inclusive OR literal with W"
+      },
+      {
+        "mnemonic": "MOVLW",
+        "syntax": "MOVLW k",
+        "opcode": "1100xxkkkkkkkk",
+        "operation": "k Ã¢â€ â€™ W",
+        "statusAffected": [],
+        "cycles": 1,
+        "description": "Move literal to W"
+      },
+      {
+        "mnemonic": "RETLW",
+        "syntax": "RETLW k",
+        "opcode": "1101xxkkkkkkkk",
+        "operation": "k Ã¢â€ â€™ W, TOS Ã¢â€ â€™ PC",
+        "statusAffected": [],
+        "cycles": 2,
+        "description": "Return with literal in W"
+      },
+      {
+        "mnemonic": "SUBLW",
+        "syntax": "SUBLW k",
+        "opcode": "11110xkkkkkkkk",
+        "operation": "k - W Ã¢â€ â€™ W",
+        "statusAffected": ["C", "DC", "Z"],
+        "cycles": 1,
+        "description": "Subtract W from literal"
+      },
+      {
+        "mnemonic": "XORLW",
+        "syntax": "XORLW k",
+        "opcode": "111010kkkkkkkk",
+        "operation": "W XOR k Ã¢â€ â€™ W",
+        "statusAffected": ["Z"],
+        "cycles": 1,
+        "description": "Exclusive OR literal with W"
+      }
+    ],
+
+    "control": [
+      {
+        "mnemonic": "CALL",
+        "syntax": "CALL k",
+        "opcode": "100kkkkkkkkkkk",
+        "operation": "PC+1 Ã¢â€ â€™ TOS, k Ã¢â€ â€™ PC<10:0>",
+        "statusAffected": [],
+        "cycles": 2,
+        "description": "Call subroutine"
+      },
+      {
+        "mnemonic": "CLRWDT",
+        "syntax": "CLRWDT",
+        "opcode": "00000001100100",
+        "operation": "00h Ã¢â€ â€™ WDT, 1 Ã¢â€ â€™ TO, 1 Ã¢â€ â€™ PD",
+        "statusAffected": ["TO", "PD"],
+        "cycles": 1,
+        "description": "Clear Watchdog Timer"
+      },
+      {
+        "mnemonic": "GOTO",
+        "syntax": "GOTO k",
+        "opcode": "101kkkkkkkkkkk",
+        "operation": "k Ã¢â€ â€™ PC<10:0>",
+        "statusAffected": [],
+        "cycles": 2,
+        "description": "Go to address"
+      },
+      {
+        "mnemonic": "RETFIE",
+        "syntax": "RETFIE",
+        "opcode": "00000000001001",
+        "operation": "TOS Ã¢â€ â€™ PC, 1 Ã¢â€ â€™ GIE",
+        "statusAffected": [],
+        "cycles": 2,
+        "description": "Return from interrupt"
+      },
+      {
+        "mnemonic": "RETURN",
+        "syntax": "RETURN",
+        "opcode": "00000000001000",
+        "operation": "TOS Ã¢â€ â€™ PC",
+        "statusAffected": [],
+        "cycles": 2,
+        "description": "Return from subroutine"
+      },
+      {
+        "mnemonic": "SLEEP",
+        "syntax": "SLEEP",
+        "opcode": "00000001100011",
+        "operation": "00h Ã¢â€ â€™ WDT, 0 Ã¢â€ â€™ PD, 1 Ã¢â€ â€™ TO",
+        "statusAffected": ["TO", "PD"],
+        "cycles": 1,
+        "description": "Go into standby mode"
+      }
+    ]
+  },
+
+  "commonRegisters": {
+    "INDF": { "address": "0x00", "description": "Indirect addressing register" },
+    "PCL": { "address": "0x02", "description": "Program Counter Low byte" },
+    "STATUS": { "address": "0x03", "description": "Status register" },
+    "FSR": { "address": "0x04", "description": "File Select Register" },
+    "PCLATH": { "address": "0x0A", "description": "PC Latch High bits" },
+    "INTCON": { "address": "0x0B", "description": "Interrupt Control register" }
+  },
+
+  "statusBits": {
+    "C":   { "bit": 0, "description": "Carry/Borrow flag" },
+    "DC":  { "bit": 1, "description": "Digit Carry/Borrow flag" },
+    "Z":   { "bit": 2, "description": "Zero flag" },
+    "PD":  { "bit": 3, "description": "Power-down flag" },
+    "TO":  { "bit": 4, "description": "Time-out flag" },
+    "RP0": { "bit": 5, "description": "Register Bank Select bit 0" },
+    "RP1": { "bit": 6, "description": "Register Bank Select bit 1" },
+    "IRP": { "bit": 7, "description": "Indirect Register Bank Select" }
+  },
+
+  "intconBits": {
+    "RBIF": { "bit": 0, "description": "PORTB Change Interrupt Flag" },
+    "INTF": { "bit": 1, "description": "External Interrupt Flag" },
+    "T0IF": { "bit": 2, "description": "TMR0 Overflow Interrupt Flag" },
+    "RBIE": { "bit": 3, "description": "PORTB Change Interrupt Enable" },
+    "INTE": { "bit": 4, "description": "External Interrupt Enable" },
+    "T0IE": { "bit": 5, "description": "TMR0 Overflow Interrupt Enable" },
+    "PEIE": { "bit": 6, "description": "Peripheral Interrupt Enable" },
+    "GIE":  { "bit": 7, "description": "Global Interrupt Enable" }
+  },
+
+  "optionBits": {
+    "PS0":    { "bit": 0, "description": "Prescaler Rate Select bit 0" },
+    "PS1":    { "bit": 1, "description": "Prescaler Rate Select bit 1" },
+    "PS2":    { "bit": 2, "description": "Prescaler Rate Select bit 2" },
+    "PSA":    { "bit": 3, "description": "Prescaler Assignment (0=TMR0, 1=WDT)" },
+    "T0SE":   { "bit": 4, "description": "TMR0 Source Edge Select" },
+    "T0CS":   { "bit": 5, "description": "TMR0 Clock Source Select" },
+    "INTEDG": { "bit": 6, "description": "Interrupt Edge Select" },
+    "RBPU":   { "bit": 7, "description": "PORTB Pull-up Enable (active low)" }
+  },
+
+  "directives": [
+    { "name": "ORG", "syntax": "ORG addr", "description": "Set program origin" },
+    { "name": "END", "syntax": "END", "description": "End of source" },
+    { "name": "EQU", "syntax": "symbol EQU value", "description": "Define constant" },
+    { "name": "CBLOCK", "syntax": "CBLOCK addr", "description": "Start constant block" },
+    { "name": "ENDC", "syntax": "ENDC", "description": "End constant block" },
+    { "name": "#DEFINE", "syntax": "#DEFINE name value", "description": "Define macro" },
+    { "name": "#INCLUDE", "syntax": "#INCLUDE <file>", "description": "Include file" },
+    { "name": "DT", "syntax": "DT val1,val2,...", "description": "Define table (RETLW)" },
+    { "name": "DW", "syntax": "DW val1,val2,...", "description": "Define word data" },
+    { "name": "RES", "syntax": "RES n", "description": "Reserve n locations" }
+  ],
+
+  "interruptVector": "0x0004",
+  "resetVector": "0x0000"
+}

@@ -1,6 +1,8 @@
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { PIC16Assembler, hexWords } = require('./helpers');
+const { ctx, assemblerFor, hexWords } = require('./helpers');
+
+const { PIC16Assembler } = ctx;
 
 function words(source) {
     const result = new PIC16Assembler().assemble(source);
@@ -166,7 +168,7 @@ describe('controlli di intervallo e operandi', () => {
 
     test('tutti gli errori del programma, ognuno sulla sua riga', () => {
         const list = errors('L1: NOP\n    MOVLW FOO\n    GOTO L2\n    BSF PORTB,9');
-        assert.deepEqual(list.map(e => e.line), [2, 3, 4]);
+        assert.deepEqual(Array.from(list, e => e.line), [2, 3, 4]);
     });
 
     test('il messaggio riporta l\'operando cosi\' come scritto', () => {
@@ -206,7 +208,7 @@ describe('direttive', () => {
         const result = new PIC16Assembler().assemble('    NOP\n    ORG 0x2100\n    DE 7, "AB"');
         assert.ok(result.success);
         assert.equal(hexWords(result.programMemory), '0000');
-        assert.deepEqual(result.eepromData, [7, 65, 66]);
+        assert.deepEqual(Array.from(result.eepromData), [7, 65, 66]);
     });
 
     test('direttive accettate e ignorate', () => {
@@ -223,6 +225,63 @@ describe('Intel HEX', () => {
     test('record dati con checksum e record di fine', () => {
         const asm = new PIC16Assembler();
         asm.assemble('    MOVLW 0x55\n    GOTO 0');
-        assert.equal(asm.toIntelHex(), ':04000000553000284F\n:00000001FF');
+        assert.equal(asm.toIntelHex(), ':04000000553000284F\n:00000001FF\n');
+    });
+
+    test('un NOP resta 0x0000, non diventa memoria vuota', () => {
+        // Regressione: "word || 0x3FFF" trasformava ogni NOP in 0x3FFF.
+        const asm = new PIC16Assembler();
+        asm.assemble('    NOP\n    MOVLW 1');
+        assert.equal(asm.toIntelHex().split('\n')[0], ':0400000000000130CB');
+    });
+
+    test('la config word va a 0x2007 (indirizzo byte 0x400E)', () => {
+        const asm = new PIC16Assembler();
+        asm.assemble('    __CONFIG 0x3FF1\n    NOP');
+        assert.match(asm.toIntelHex(), /^:02400E00F13F80$/m);
+    });
+});
+
+describe('simboli per device', () => {
+    const reg = async (dev, name) => (await assemblerFor(dev)).registers[name];
+
+    test('registri EEPROM e bit EEIF/EEIE agli indirizzi del device', async () => {
+        assert.deepEqual([await reg('PIC16F84A', 'EEDATA'), await reg('PIC16F84A', 'EECON1'), await reg('PIC16F84A', 'EEIF'), await reg('PIC16F84A', 'EEIE')],
+            [0x08, 0x88, 4, 6]);
+        assert.deepEqual([await reg('PIC16F628A', 'EEDATA'), await reg('PIC16F628A', 'EECON1'), await reg('PIC16F628A', 'EEIF'), await reg('PIC16F628A', 'EEIE')],
+            [0x9A, 0x9C, 7, 7]);
+        assert.deepEqual([await reg('PIC16F877A', 'EEDATA'), await reg('PIC16F877A', 'EECON1'), await reg('PIC16F877A', 'EEIF'), await reg('PIC16F877A', 'EEIE')],
+            [0x10C, 0x18C, 4, 4]);
+        // Device senza sezione 'sfr' nella scheda: dagli indirizzi di famiglia.
+        assert.equal(await reg('PIC16F876A', 'EEADR'), 0x10D);
+    });
+
+    test('le copie nei banchi alti non ridefiniscono i simboli', async () => {
+        // Regressione: sull'877A PORTB valeva 0x106 e STATUS 0x183.
+        for (const [name, addr] of [['PORTB', 0x06], ['TMR0', 0x01], ['STATUS', 0x03], ['OPTION_REG', 0x81], ['TRISB', 0x86]]) {
+            assert.equal(await reg('PIC16F877A', name), addr, name);
+        }
+    });
+
+    test('BANKSEL sceglie il banco giusto sull\'877A', async () => {
+        const asm = await assemblerFor('PIC16F877A');
+        const out = (src) => hexWords(asm.assemble(src).programMemory);
+        assert.equal(out('    BANKSEL PORTB'), '1283 1303', 'banco 0');
+        assert.equal(out('    BANKSEL EECON1'), '1683 1703', 'banco 3');
+    });
+
+    test('bit delle periferiche anche con la sezione sfr', async () => {
+        // Regressione: con 'sfr' loadDeviceSymbols usciva prima dei bit.
+        for (const name of ['GO', 'GO_DONE', 'ADON', 'SSPIF', 'RCIF', 'TXIF', 'TMR1ON', 'TMR1IF', 'TMR1IE']) {
+            assert.notEqual(await reg('PIC16F877A', name), undefined, name);
+        }
+        assert.equal(await reg('PIC16F628A', 'CMIF'), 6);
+    });
+
+    test('LIST P= cambia device a meta\' sorgente', async () => {
+        const asm = await assemblerFor('PIC16F84A');
+        const r = asm.assemble('    LIST P=16F877A\n    BSF ADCON0, GO');
+        assert.ok(r.success, JSON.stringify(r.errors));
+        assert.equal(hexWords(r.programMemory), '151F');
     });
 });

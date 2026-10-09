@@ -10,3 +10,6 @@ playwright-report/
 test-results/
 tests/e2e/.auth/
 .DS_Store
+
+# Note di passaggio tra sessioni (non versionate)
+HANDOFF-*.md

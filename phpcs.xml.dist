@@ -9,7 +9,7 @@
     <!-- File condiviso verbatim tra tutti i plugin DB (stile proprio, versionato
          a parte): trattato come vendored. NB: non usare <rule ref="Categoria">
          per escluderlo — importerebbe l'intera categoria di sniff. -->
-    <exclude-pattern>inc/class-updater\.php</exclude-pattern>
+    <exclude-pattern>includes/class-updater\.php</exclude-pattern>
 
     <arg value="ps"/>
     <arg name="colors"/>
@@ -59,6 +59,49 @@
 
         <!-- Convenzione naming file del progetto (class-updater.php) -->
         <exclude name="WordPress.Files.FileName"/>
+
+        <!-- Il file principale tiene insieme la classe del plugin e tre
+             funzioni helper globali (picsim_db() e simili) usate dalle API. -->
+        <exclude name="Universal.Files.SeparateFunctionsFromOO"/>
+    </rule>
+
+    <!-- I controlli di proprieta' confrontano ID letti dal database (stringhe)
+         con get_current_user_id() (intero): con === fallirebbero sempre e
+         negherebbero l'accesso ai proprietari. Il confronto debole e' voluto. -->
+    <rule ref="Universal.Operators.StrictComparisons">
+        <severity>0</severity>
+    </rule>
+
+    <!-- Capability del plugin, assegnate dall'attivatore. -->
+    <rule ref="WordPress.WP.Capabilities">
+        <properties>
+            <property name="custom_capabilities" type="array">
+                <element value="picsim_manage_classes"/>
+                <element value="picsim_create_assignments"/>
+                <element value="picsim_grade_submissions"/>
+                <element value="picsim_view_class_projects"/>
+                <element value="picsim_manage_all"/>
+            </property>
+        </properties>
+    </rule>
+
+    <!-- Tabelle proprie del plugin (progetti, classi, consegne): non esiste
+         un'API WordPress, le query dirette sono l'unica strada e i dati
+         cambiano a ogni richiesta, quindi niente object cache. -->
+    <rule ref="WordPress.DB.DirectDatabaseQuery">
+        <exclude-pattern>includes/*</exclude-pattern>
+        <exclude-pattern>pic-simulator\.php</exclude-pattern>
+    </rule>
+
+    <!-- Salvataggio rapido dei progetti come file JSON nella cartella
+         dell'utente: WP_Filesystem richiederebbe credenziali FTP su molti host. -->
+    <rule ref="WordPress.WP.AlternativeFunctions">
+        <exclude-pattern>pic-simulator\.php</exclude-pattern>
+    </rule>
+
+    <!-- $class come nome di parametro: conta solo per gli argomenti con nome di PHP 8. -->
+    <rule ref="Universal.NamingConventions.NoReservedKeywordParameterNames">
+        <severity>0</severity>
     </rule>
 
     <!-- uninstall.php ripulisce i transient dell'updater: non esiste una API
@@ -68,6 +111,9 @@
         <exclude-pattern>uninstall\.php</exclude-pattern>
     </rule>
     <rule ref="WordPress.DB.PreparedSQL">
+        <exclude-pattern>uninstall\.php</exclude-pattern>
+    </rule>
+    <rule ref="Squiz.PHP.CommentedOutCode">
         <exclude-pattern>uninstall\.php</exclude-pattern>
     </rule>
 </ruleset>

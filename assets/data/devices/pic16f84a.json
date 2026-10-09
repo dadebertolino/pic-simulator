@@ -1,0 +1,152 @@
+{
+  "device": "PIC16F84A",
+  "description": "18-pin Enhanced FLASH/EEPROM 8-bit Microcontroller",
+  "datasheet": "DS35007C",
+  "package": ["PDIP-18", "SOIC-18"],
+  
+  "memory": {
+    "program": {
+      "type": "FLASH",
+      "size": 1024,
+      "pageSize": 1024,
+      "pages": 1
+    },
+    "ram": {
+      "total": 68,
+      "banks": 2,
+      "gpr": {
+        "bank0": { "start": "0x0C", "end": "0x4F", "size": 68 },
+        "bank1": { "start": "0x8C", "end": "0xCF", "mirrored": true }
+      }
+    },
+    "eeprom": {
+      "size": 64,
+      "startAddress": "0x2100"
+    }
+  },
+
+  "ports": {
+    "PORTA": {
+      "width": 5,
+      "bitmask": "0x1F",
+      "dataReg": "0x05",
+      "trisReg": "0x85",
+      "pins": [
+        { "pin": 0, "name": "RA0" },
+        { "pin": 1, "name": "RA1" },
+        { "pin": 2, "name": "RA2" },
+        { "pin": 3, "name": "RA3" },
+        { "pin": 4, "name": "RA4", "altFunc": ["T0CKI"] }
+      ]
+    },
+    "PORTB": {
+      "width": 8,
+      "bitmask": "0xFF",
+      "dataReg": "0x06",
+      "trisReg": "0x86",
+      "pins": [
+        { "pin": 0, "name": "RB0", "altFunc": ["INT"] },
+        { "pin": 1, "name": "RB1" },
+        { "pin": 2, "name": "RB2" },
+        { "pin": 3, "name": "RB3" },
+        { "pin": 4, "name": "RB4", "ioc": true },
+        { "pin": 5, "name": "RB5", "ioc": true },
+        { "pin": 6, "name": "RB6", "ioc": true },
+        { "pin": 7, "name": "RB7", "ioc": true }
+      ],
+      "features": {
+        "weakPullups": true,
+        "interruptOnChange": [4, 5, 6, 7]
+      }
+    }
+  },
+
+  "peripherals": {
+    "TMR0": {
+      "type": "timer8",
+      "reg": "0x01",
+      "optionReg": "0x81",
+      "prescaler": {
+        "values": [2, 4, 8, 16, 32, 64, 128, 256],
+        "assignBit": "PSA",
+        "selectBits": ["PS0", "PS1", "PS2"]
+      },
+      "clockSource": {
+        "internal": { "bit": "T0CS", "value": 0 },
+        "external": { "bit": "T0CS", "value": 1, "pin": "RA4/T0CKI" }
+      },
+      "edgeSelect": { "bit": "T0SE" },
+      "interruptFlag": "T0IF",
+      "interruptEnable": "T0IE"
+    }
+  },
+
+  "interrupts": {
+    "vector": "0x0004",
+    "sources": {
+      "INT": {
+        "flag": { "reg": "INTCON", "bit": 1 },
+        "enable": { "reg": "INTCON", "bit": 4 },
+        "pin": "RB0"
+      },
+      "TMR0": {
+        "flag": { "reg": "INTCON", "bit": 2 },
+        "enable": { "reg": "INTCON", "bit": 5 }
+      },
+      "PORTB": {
+        "flag": { "reg": "INTCON", "bit": 0 },
+        "enable": { "reg": "INTCON", "bit": 3 },
+        "pins": [4, 5, 6, 7]
+      },
+      "EEPROM": {
+        "flag": { "reg": "EECON1", "bit": 4 },
+        "enable": { "reg": "INTCON", "bit": 6 }
+      }
+    }
+  },
+
+  "sfr": {
+    "bank0": {
+      "0x00": { "name": "INDF", "reset": "0x00" },
+      "0x01": { "name": "TMR0", "reset": "0xFF" },
+      "0x02": { "name": "PCL", "reset": "0x00" },
+      "0x03": { "name": "STATUS", "reset": "0x18" },
+      "0x04": { "name": "FSR", "reset": "0xFF" },
+      "0x05": { "name": "PORTA", "reset": "0x00" },
+      "0x06": { "name": "PORTB", "reset": "0x00" },
+      "0x08": { "name": "EEDATA", "reset": "0x00" },
+      "0x09": { "name": "EEADR", "reset": "0x00" },
+      "0x0A": { "name": "PCLATH", "reset": "0x00" },
+      "0x0B": { "name": "INTCON", "reset": "0x00" }
+    },
+    "bank1": {
+      "0x80": { "name": "INDF", "mirror": "0x00" },
+      "0x81": { "name": "OPTION_REG", "reset": "0xFF" },
+      "0x82": { "name": "PCL", "mirror": "0x02" },
+      "0x83": { "name": "STATUS", "mirror": "0x03" },
+      "0x84": { "name": "FSR", "mirror": "0x04" },
+      "0x85": { "name": "TRISA", "reset": "0x1F" },
+      "0x86": { "name": "TRISB", "reset": "0xFF" },
+      "0x88": { "name": "EECON1", "reset": "0x00" },
+      "0x89": { "name": "EECON2", "reset": "0x00" },
+      "0x8A": { "name": "PCLATH", "mirror": "0x0A" },
+      "0x8B": { "name": "INTCON", "mirror": "0x0B" }
+    }
+  },
+
+  "config": {
+    "address": "0x2007",
+    "bits": {
+      "FOSC": { "bits": [0, 1], "options": ["LP", "XT", "HS", "RC"] },
+      "WDTE": { "bit": 2, "description": "Watchdog Timer Enable" },
+      "PWRTE": { "bit": 3, "description": "Power-up Timer Enable" },
+      "CP": { "bit": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13], "description": "Code Protection" }
+    }
+  },
+
+  "electrical": {
+    "vddMin": 2.0,
+    "vddMax": 5.5,
+    "maxFrequency": 20
+  }
+}

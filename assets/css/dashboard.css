@@ -1,0 +1,1657 @@
+/**
+ * PicSim Dashboard Styles
+ */
+
+/* ==========================================================================
+   VARIABLES
+   ========================================================================== */
+
+.picsim-dashboard,
+.picsim-editor,
+.picsim-wizard-overlay {
+    /* Palette moderna - slate luminoso */
+    --picsim-bg: #1e293b;
+    --picsim-bg-secondary: #334155;
+    --picsim-bg-tertiary: #475569;
+    --picsim-bg-hover: #64748b;
+    --picsim-border: #64748b;
+    --picsim-border-light: #94a3b8;
+    
+    /* Testo leggibile */
+    --picsim-text: #f1f5f9;
+    --picsim-text-secondary: #cbd5e1;
+    --picsim-text-dim: #94a3b8;
+    
+    /* Accenti vivaci */
+    --picsim-primary: #38bdf8;
+    --picsim-primary-hover: #0ea5e9;
+    --picsim-primary-bg: rgba(56, 189, 248, 0.15);
+    
+    /* Feedback - colori allegri */
+    --picsim-success: #4ade80;
+    --picsim-warning: #fbbf24;
+    --picsim-error: #f87171;
+    
+    /* UI */
+    --picsim-radius: 8px;
+    --picsim-radius-lg: 12px;
+    --picsim-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    
+    --picsim-font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --picsim-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+}
+
+/* ==========================================================================
+   BASE
+   ========================================================================== */
+
+.picsim-dashboard {
+    font-family: var(--picsim-font);
+    background: var(--picsim-bg);
+    color: var(--picsim-text);
+    min-height: 100vh;
+}
+
+.picsim-dashboard *, 
+.picsim-editor *,
+.picsim-wizard * {
+    box-sizing: border-box;
+}
+
+/* ==========================================================================
+   HEADER
+   ========================================================================== */
+
+.picsim-dash-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--picsim-bg-secondary);
+    border-bottom: 1px solid var(--picsim-border);
+}
+
+.picsim-dash-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.picsim-dash-logo svg {
+    color: var(--picsim-primary);
+}
+
+.picsim-dash-logo h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--picsim-text);
+}
+
+.picsim-dash-subtitle {
+    font-size: 11px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-dash-nav {
+    display: flex;
+    gap: 4px;
+}
+
+.picsim-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    border-radius: var(--picsim-radius);
+    color: var(--picsim-text-secondary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picsim-nav-btn:hover {
+    background: var(--picsim-bg-hover);
+    color: var(--picsim-text);
+}
+
+.picsim-nav-btn.active {
+    background: var(--picsim-primary-bg);
+    color: var(--picsim-primary);
+}
+
+/* ==========================================================================
+   BUTTONS
+   ========================================================================== */
+
+.picsim-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: var(--picsim-bg-tertiary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    color: var(--picsim-text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picsim-btn:hover {
+    background: var(--picsim-bg-hover);
+    border-color: var(--picsim-border-light);
+}
+
+.picsim-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.picsim-btn-primary {
+    background: var(--picsim-primary);
+    border-color: var(--picsim-primary);
+    color: #000;
+}
+
+.picsim-btn-primary:hover {
+    background: var(--picsim-primary-hover);
+}
+
+.picsim-btn-icon {
+    padding: 8px;
+    background: transparent;
+    border: none;
+}
+
+.picsim-btn-icon:hover {
+    background: var(--picsim-bg-hover);
+}
+
+/* ==========================================================================
+   FORMS
+   ========================================================================== */
+
+.picsim-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.picsim-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.picsim-form-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.picsim-form input,
+.picsim-form textarea,
+.picsim-form select,
+.picsim-select {
+    padding: 10px 12px;
+    background: var(--picsim-bg);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    color: var(--picsim-text);
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.picsim-form input:focus,
+.picsim-form textarea:focus,
+.picsim-form select:focus {
+    outline: none;
+    border-color: var(--picsim-primary);
+}
+
+.picsim-form-hint {
+    font-size: 11px;
+    color: var(--picsim-text-dim);
+}
+
+/* ==========================================================================
+   TOOLBAR
+   ========================================================================== */
+
+.picsim-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--picsim-border);
+}
+
+.picsim-toolbar-left,
+.picsim-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.picsim-toolbar h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.picsim-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.picsim-search svg {
+    position: absolute;
+    left: 10px;
+    color: var(--picsim-text-dim);
+}
+
+.picsim-search input {
+    padding: 8px 12px 8px 34px;
+    width: 240px;
+    background: var(--picsim-bg-tertiary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    color: var(--picsim-text);
+    font-size: 13px;
+}
+
+.picsim-view-toggle {
+    display: flex;
+    background: var(--picsim-bg-tertiary);
+    border-radius: var(--picsim-radius);
+    overflow: hidden;
+}
+
+.picsim-view-btn {
+    padding: 6px 10px;
+    background: transparent;
+    border: none;
+    color: var(--picsim-text-secondary);
+    cursor: pointer;
+}
+
+.picsim-view-btn.active {
+    background: var(--picsim-primary-bg);
+    color: var(--picsim-primary);
+}
+
+/* ==========================================================================
+   PROJECTS GRID
+   ========================================================================== */
+
+.picsim-projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.picsim-projects-grid.list-view {
+    grid-template-columns: 1fr;
+}
+
+.picsim-project-card {
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius-lg);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picsim-project-card:hover {
+    border-color: var(--picsim-border-light);
+    transform: translateY(-2px);
+    box-shadow: var(--picsim-shadow);
+}
+
+.picsim-project-card.locked {
+    opacity: 0.8;
+}
+
+.picsim-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.picsim-card-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--picsim-primary-bg);
+    border-radius: var(--picsim-radius);
+    color: var(--picsim-primary);
+}
+
+.picsim-card-icon.submission { background: rgba(59, 185, 80, 0.1); color: var(--picsim-success); }
+.picsim-card-icon.template { background: rgba(210, 153, 34, 0.1); color: var(--picsim-warning); }
+
+.picsim-card-actions {
+    position: relative;
+}
+
+.picsim-card-menu-btn {
+    padding: 4px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--picsim-text-secondary);
+    cursor: pointer;
+}
+
+.picsim-card-menu-btn:hover {
+    background: var(--picsim-bg-hover);
+}
+
+.picsim-card-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    padding: 4px 0;
+    min-width: 140px;
+    z-index: 100;
+    display: none;
+    box-shadow: var(--picsim-shadow);
+}
+
+.picsim-card-menu.open {
+    display: block;
+}
+
+.picsim-card-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    color: var(--picsim-text);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.picsim-card-menu button:hover {
+    background: var(--picsim-bg-hover);
+}
+
+.picsim-card-menu button.danger {
+    color: var(--picsim-error);
+}
+
+.picsim-card-menu hr {
+    margin: 4px 0;
+    border: none;
+    border-top: 1px solid var(--picsim-border);
+}
+
+.picsim-card-body {
+    margin-bottom: 12px;
+}
+
+.picsim-card-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 4px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.picsim-card-title svg {
+    color: var(--picsim-warning);
+}
+
+.picsim-card-desc {
+    margin: 0;
+    font-size: 13px;
+    color: var(--picsim-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.picsim-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.picsim-card-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--picsim-text-dim);
+}
+
+.picsim-card-device {
+    background: var(--picsim-bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+/* ==========================================================================
+   BADGES
+   ========================================================================== */
+
+.picsim-badge {
+    display: inline-flex;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: 4px;
+    background: var(--picsim-bg-tertiary);
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-badge.active, .picsim-badge.published { background: rgba(59, 185, 80, 0.15); color: var(--picsim-success); }
+.picsim-badge.draft { background: rgba(139, 148, 158, 0.15); color: var(--picsim-text-secondary); }
+.picsim-badge.submitted { background: rgba(0, 212, 255, 0.15); color: var(--picsim-primary); }
+.picsim-badge.graded { background: rgba(210, 153, 34, 0.15); color: var(--picsim-warning); }
+
+/* ==========================================================================
+   EMPTY STATE
+   ========================================================================== */
+
+.picsim-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    text-align: center;
+}
+
+.picsim-empty svg {
+    color: var(--picsim-text-dim);
+    margin-bottom: 16px;
+}
+
+.picsim-empty h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    color: var(--picsim-text);
+}
+
+.picsim-empty p {
+    margin: 0 0 16px;
+    color: var(--picsim-text-secondary);
+}
+
+/* ==========================================================================
+   WIZARD
+   ========================================================================== */
+
+.picsim-wizard-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.picsim-wizard-overlay.visible {
+    opacity: 1;
+}
+
+.picsim-wizard-overlay.closing {
+    opacity: 0;
+}
+
+.picsim-wizard {
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius-lg);
+    width: 90%;
+    max-width: 700px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--picsim-shadow);
+}
+
+.picsim-wizard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--picsim-border);
+}
+
+.picsim-wizard-header h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.picsim-wizard-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    color: var(--picsim-text-secondary);
+    cursor: pointer;
+    line-height: 1;
+}
+
+.picsim-wizard-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    gap: 8px;
+}
+
+.picsim-step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.picsim-step .step-num {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--picsim-bg-tertiary);
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.picsim-step .step-label {
+    font-size: 13px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-step.active .step-num {
+    background: var(--picsim-primary);
+    color: #000;
+}
+
+.picsim-step.active .step-label {
+    color: var(--picsim-text);
+}
+
+.picsim-step.completed .step-num {
+    background: var(--picsim-success);
+    color: #fff;
+}
+
+.picsim-step-line {
+    width: 40px;
+    height: 2px;
+    background: var(--picsim-border);
+}
+
+.picsim-wizard-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.picsim-wizard-footer {
+    display: flex;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-top: 1px solid var(--picsim-border);
+}
+
+/* Device Grid */
+.picsim-device-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.picsim-device-card {
+    padding: 16px;
+    background: var(--picsim-bg);
+    border: 2px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picsim-device-card:hover {
+    border-color: var(--picsim-border-light);
+}
+
+.picsim-device-card.selected {
+    border-color: var(--picsim-primary);
+    background: var(--picsim-primary-bg);
+}
+
+.picsim-device-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.picsim-device-card h4 {
+    margin: 0 0 4px;
+    font-size: 15px;
+}
+
+.picsim-device-card p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-device-difficulty {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: var(--picsim-bg-tertiary);
+}
+
+.picsim-device-difficulty.principiante { color: var(--picsim-success); }
+.picsim-device-difficulty.intermedio { color: var(--picsim-warning); }
+.picsim-device-difficulty.avanzato { color: var(--picsim-error); }
+
+.picsim-device-specs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--picsim-text-dim);
+}
+
+.picsim-feature-tag {
+    padding: 2px 6px;
+    background: var(--picsim-bg-tertiary);
+    border-radius: 4px;
+    font-size: 10px;
+}
+
+/* Template Grid */
+.picsim-template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+}
+
+.picsim-template-card {
+    padding: 16px;
+    text-align: center;
+    background: var(--picsim-bg);
+    border: 2px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picsim-template-card:hover {
+    border-color: var(--picsim-border-light);
+}
+
+.picsim-template-card.selected {
+    border-color: var(--picsim-primary);
+    background: var(--picsim-primary-bg);
+}
+
+.picsim-template-icon {
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--picsim-bg-tertiary);
+    border-radius: var(--picsim-radius);
+    color: var(--picsim-primary);
+}
+
+.picsim-template-card h4 {
+    margin: 0 0 4px;
+    font-size: 14px;
+}
+
+.picsim-template-card p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+/* Summary */
+.picsim-wizard-summary {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--picsim-bg);
+    border-radius: var(--picsim-radius);
+}
+
+.picsim-wizard-summary h4 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+/* ==========================================================================
+   EDITOR
+   ========================================================================== */
+
+.picsim-editor {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--picsim-bg);
+}
+
+.picsim-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--picsim-bg-secondary);
+    border-bottom: 1px solid var(--picsim-border);
+}
+
+.picsim-editor-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.picsim-editor-title h2 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.picsim-editor-device {
+    font-size: 11px;
+    color: var(--picsim-primary);
+}
+
+.picsim-editor-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.picsim-editor-main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.picsim-editor-sidebar {
+    width: 240px;
+    background: var(--picsim-bg-secondary);
+    border-right: 1px solid var(--picsim-border);
+    display: flex;
+    flex-direction: column;
+}
+
+.picsim-sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--picsim-text-secondary);
+    text-transform: uppercase;
+}
+
+.picsim-file-list {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.picsim-file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.picsim-file-item:hover {
+    background: var(--picsim-bg-hover);
+}
+
+.picsim-file-item.active {
+    background: var(--picsim-primary-bg);
+}
+
+.picsim-file-item svg {
+    color: var(--picsim-text-secondary);
+    flex-shrink: 0;
+}
+
+.picsim-file-name {
+    flex: 1;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.picsim-file-badge {
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.picsim-file-badge.main {
+    background: var(--picsim-primary-bg);
+    color: var(--picsim-primary);
+}
+
+.picsim-file-badge.modified {
+    color: var(--picsim-warning);
+    font-size: 14px;
+}
+
+.picsim-sidebar-section {
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--picsim-text-secondary);
+    text-transform: uppercase;
+    border-top: 1px solid var(--picsim-border);
+}
+
+.picsim-project-info {
+    padding: 0 16px 16px;
+}
+
+.picsim-info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    font-size: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-info-item strong {
+    color: var(--picsim-text);
+}
+
+/* Editor Area */
+.picsim-editor-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.picsim-tabs {
+    display: flex;
+    background: var(--picsim-bg-secondary);
+    border-bottom: 1px solid var(--picsim-border);
+    overflow-x: auto;
+}
+
+.picsim-tabs-empty {
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--picsim-text-dim);
+}
+
+.picsim-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: transparent;
+    border-right: 1px solid var(--picsim-border);
+    font-size: 13px;
+    color: var(--picsim-text-secondary);
+    cursor: pointer;
+}
+
+.picsim-tab:hover {
+    background: var(--picsim-bg-hover);
+}
+
+.picsim-tab.active {
+    background: var(--picsim-bg);
+    color: var(--picsim-text);
+}
+
+.picsim-tab-modified {
+    color: var(--picsim-warning);
+}
+
+.picsim-tab-close {
+    padding: 2px 4px;
+    background: transparent;
+    border: none;
+    color: var(--picsim-text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    border-radius: 3px;
+}
+
+.picsim-tab-close:hover {
+    background: var(--picsim-bg-hover);
+    color: var(--picsim-text);
+}
+
+/* Code Area */
+.picsim-code-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+.picsim-code-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--picsim-text-dim);
+}
+
+.picsim-code-editor {
+    display: flex;
+    height: 100%;
+}
+
+.picsim-code-editor #line-numbers {
+    padding: 10px 8px;
+    background: var(--picsim-bg-secondary);
+    font-family: var(--picsim-font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--picsim-text-dim);
+    text-align: right;
+    user-select: none;
+    overflow: hidden;
+    white-space: pre;
+}
+
+.picsim-code-editor #code-editor {
+    flex: 1;
+    padding: 10px;
+    background: var(--picsim-bg);
+    border: none;
+    font-family: var(--picsim-font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--picsim-text);
+    resize: none;
+    outline: none;
+}
+
+.picsim-statusbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 12px;
+    background: var(--picsim-bg-secondary);
+    border-top: 1px solid var(--picsim-border);
+    font-size: 11px;
+    color: var(--picsim-text-dim);
+}
+
+.picsim-statusbar-left,
+.picsim-statusbar-right {
+    display: flex;
+    gap: 16px;
+}
+
+#status-modified {
+    color: var(--picsim-warning);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ==========================================================================
+   MODAL
+   ========================================================================== */
+
+.picsim-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.picsim-modal-overlay.visible {
+    opacity: 1;
+}
+
+.picsim-modal {
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius-lg);
+    width: 90%;
+    max-width: 480px;
+    box-shadow: var(--picsim-shadow);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.picsim-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--picsim-border);
+    flex-shrink: 0;
+}
+
+.picsim-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.picsim-modal-close {
+    background: transparent;
+    border: none;
+    font-size: 24px;
+    color: var(--picsim-text-secondary);
+    cursor: pointer;
+}
+
+.picsim-modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.picsim-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--picsim-border);
+    flex-shrink: 0;
+}
+
+/* Fix form inputs inside modals */
+.picsim-modal .picsim-form input,
+.picsim-modal .picsim-form textarea,
+.picsim-modal .picsim-form select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.picsim-modal .picsim-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 500px) {
+    .picsim-modal .picsim-form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ==========================================================================
+   TOAST
+   ========================================================================== */
+
+.picsim-toasts {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.picsim-toast {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    box-shadow: var(--picsim-shadow);
+    opacity: 0;
+    transform: translateX(20px);
+    transition: all 0.2s;
+}
+
+.picsim-toast.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.picsim-toast.closing {
+    opacity: 0;
+    transform: translateX(20px);
+}
+
+.picsim-toast-success { border-left: 3px solid var(--picsim-success); }
+.picsim-toast-error { border-left: 3px solid var(--picsim-error); }
+.picsim-toast-warning { border-left: 3px solid var(--picsim-warning); }
+
+.picsim-toast-close {
+    background: transparent;
+    border: none;
+    color: var(--picsim-text-dim);
+    cursor: pointer;
+    font-size: 18px;
+}
+
+/* ==========================================================================
+   CONTEXT MENU
+   ========================================================================== */
+
+.picsim-context-menu {
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    padding: 4px 0;
+    min-width: 140px;
+    z-index: 1001;
+    box-shadow: var(--picsim-shadow);
+}
+
+.picsim-context-menu button {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    color: var(--picsim-text);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.picsim-context-menu button:hover {
+    background: var(--picsim-bg-hover);
+}
+
+.picsim-context-menu button.danger {
+    color: var(--picsim-error);
+}
+
+.picsim-context-menu hr {
+    margin: 4px 0;
+    border: none;
+    border-top: 1px solid var(--picsim-border);
+}
+
+/* ==========================================================================
+   LOADING / SPINNER
+   ========================================================================== */
+
+.picsim-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    gap: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--picsim-border);
+    border-top-color: var(--picsim-primary);
+    border-radius: 50%;
+    animation: picsim-spin 0.8s linear infinite;
+}
+
+.picsim-spinner.small {
+    width: 16px;
+    height: 16px;
+    border-width: 2px;
+}
+
+@keyframes picsim-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   CLASSES
+   ========================================================================== */
+
+.picsim-classes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.picsim-class-card {
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius-lg);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picsim-class-card:hover {
+    border-color: var(--picsim-border-light);
+    transform: translateY(-2px);
+}
+
+.picsim-class-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.picsim-class-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--picsim-primary-bg);
+    border-radius: var(--picsim-radius);
+    color: var(--picsim-primary);
+}
+
+.picsim-class-body h4 {
+    margin: 0 0 4px;
+    font-size: 16px;
+}
+
+.picsim-class-info {
+    font-size: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-class-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--picsim-border);
+}
+
+.picsim-class-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-class-stats span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.picsim-class-code {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.picsim-class-code code {
+    padding: 2px 8px;
+    background: var(--picsim-bg);
+    border-radius: 4px;
+    font-family: var(--picsim-font-mono);
+    font-size: 12px;
+}
+
+/* Class Detail */
+.picsim-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--picsim-border);
+}
+
+.picsim-detail-title h2 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.picsim-detail-title span {
+    font-size: 13px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-detail-actions {
+    margin-left: auto;
+}
+
+.picsim-detail-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 24px;
+    padding: 24px;
+}
+
+.picsim-info-card {
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.picsim-info-card h4 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    color: var(--picsim-text-secondary);
+    text-transform: uppercase;
+}
+
+.picsim-join-code {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.picsim-join-code code {
+    flex: 1;
+    padding: 10px;
+    background: var(--picsim-bg);
+    border-radius: var(--picsim-radius);
+    font-family: var(--picsim-font-mono);
+    font-size: 18px;
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+.picsim-hint {
+    font-size: 12px;
+    color: var(--picsim-text-dim);
+}
+
+/* Students */
+.picsim-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.picsim-section-header h4 {
+    margin: 0;
+    font-size: 14px;
+}
+
+.picsim-students-list {
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+}
+
+.picsim-student-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--picsim-border);
+    flex-wrap: wrap;
+}
+
+.picsim-student-item:last-child {
+    border-bottom: none;
+}
+
+.picsim-student-avatar {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--picsim-primary-bg);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--picsim-primary);
+    flex-shrink: 0;
+}
+
+.picsim-student-info {
+    flex: 1;
+    min-width: 150px;
+}
+
+.picsim-student-name {
+    display: block;
+    font-weight: 500;
+}
+
+.picsim-student-email {
+    font-size: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-student-status {
+    flex-shrink: 0;
+}
+
+.picsim-student-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+}
+
+.picsim-student-actions button {
+    padding: 4px 10px;
+    background: var(--picsim-bg-tertiary);
+    border: 1px solid var(--picsim-border);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--picsim-text);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.picsim-student-actions button:hover {
+    background: var(--picsim-bg-hover);
+}
+
+.picsim-student-actions button.danger {
+    color: var(--picsim-error);
+}
+
+/* ==========================================================================
+   ASSIGNMENTS
+   ========================================================================== */
+
+.picsim-assignments-list {
+    padding: 16px 24px;
+}
+
+.picsim-assignment-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.picsim-assignment-item:hover {
+    border-color: var(--picsim-border-light);
+}
+
+.picsim-assignment-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--picsim-bg-tertiary);
+    border-radius: var(--picsim-radius);
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-assignment-content {
+    flex: 1;
+}
+
+.picsim-assignment-content h4 {
+    margin: 0 0 4px;
+    font-size: 15px;
+}
+
+.picsim-assignment-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-assignment-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.picsim-assignment-date.overdue {
+    color: var(--picsim-error);
+}
+
+.picsim-assignment-status {
+    margin-right: 8px;
+}
+
+.picsim-assignment-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* Submissions */
+.picsim-submissions-list {
+    background: var(--picsim-bg-secondary);
+    border: 1px solid var(--picsim-border);
+    border-radius: var(--picsim-radius);
+}
+
+.picsim-submission-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--picsim-border);
+}
+
+.picsim-submission-item:last-child {
+    border-bottom: none;
+}
+
+.picsim-submission-info {
+    flex: 1;
+}
+
+.picsim-submission-date {
+    display: block;
+    font-size: 12px;
+    color: var(--picsim-text-secondary);
+}
+
+.picsim-submission-grade {
+    min-width: 80px;
+    text-align: center;
+}
+
+.picsim-submission-grade .grade {
+    font-weight: 600;
+    color: var(--picsim-success);
+}
+
+.picsim-submission-grade .pending {
+    font-size: 12px;
+    color: var(--picsim-warning);
+}
+
+.picsim-submission-grade .not-submitted {
+    color: var(--picsim-text-dim);
+}
+
+.picsim-submission-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ==========================================================================
+   RESPONSIVE
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .picsim-dash-header {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .picsim-dash-nav {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .picsim-projects-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .picsim-detail-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .picsim-editor-sidebar {
+        position: absolute;
+        left: -240px;
+        height: 100%;
+        z-index: 100;
+        transition: left 0.3s;
+    }
+    
+    .picsim-editor-sidebar.open {
+        left: 0;
+    }
+}

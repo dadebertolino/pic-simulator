@@ -1,0 +1,142 @@
+{
+  "device": "PIC16F83",
+  "description": "18-pin FLASH 8-bit MCU",
+  "package": [
+    "PDIP-18"
+  ],
+  "memory": {
+    "program": {
+      "type": "FLASH",
+      "size": 512
+    },
+    "ram": {
+      "total": 36,
+      "banks": 2
+    },
+    "eeprom": {
+      "size": 64,
+      "startAddress": "0x2100"
+    }
+  },
+  "ports": {
+    "PORTA": {
+      "width": 5,
+      "bitmask": "0x1F",
+      "dataReg": "0x05",
+      "trisReg": "0x85",
+      "pins": [
+        {
+          "pin": 0,
+          "name": "RA0"
+        },
+        {
+          "pin": 1,
+          "name": "RA1"
+        },
+        {
+          "pin": 2,
+          "name": "RA2"
+        },
+        {
+          "pin": 3,
+          "name": "RA3"
+        },
+        {
+          "pin": 4,
+          "name": "RA4",
+          "altFunc": [
+            "T0CKI"
+          ]
+        }
+      ]
+    },
+    "PORTB": {
+      "width": 8,
+      "bitmask": "0xFF",
+      "dataReg": "0x06",
+      "trisReg": "0x86",
+      "pins": [
+        {
+          "pin": 0,
+          "name": "RB0",
+          "altFunc": [
+            "INT"
+          ]
+        },
+        {
+          "pin": 1,
+          "name": "RB1"
+        },
+        {
+          "pin": 2,
+          "name": "RB2"
+        },
+        {
+          "pin": 3,
+          "name": "RB3"
+        },
+        {
+          "pin": 4,
+          "name": "RB4",
+          "ioc": true
+        },
+        {
+          "pin": 5,
+          "name": "RB5",
+          "ioc": true
+        },
+        {
+          "pin": 6,
+          "name": "RB6",
+          "ioc": true
+        },
+        {
+          "pin": 7,
+          "name": "RB7",
+          "ioc": true
+        }
+      ],
+      "features": {
+        "weakPullups": true,
+        "interruptOnChange": [
+          4,
+          5,
+          6,
+          7
+        ]
+      }
+    }
+  },
+  "peripherals": {
+    "TMR0": {
+      "type": "timer8",
+      "reg": "0x01",
+      "optionReg": "0x81",
+      "prescaler": {
+        "values": [
+          2,
+          4,
+          8,
+          16,
+          32,
+          64,
+          128,
+          256
+        ]
+      },
+      "interruptFlag": {
+        "reg": "INTCON",
+        "bit": 2
+      },
+      "interruptEnable": {
+        "reg": "INTCON",
+        "bit": 5
+      }
+    }
+  },
+  "electrical": {
+    "vddMin": 2.0,
+    "vddMax": 5.5,
+    "maxFrequency": 20
+  }
+}

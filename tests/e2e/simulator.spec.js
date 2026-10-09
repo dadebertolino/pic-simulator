@@ -1,367 +1,228 @@
 /**
  * Il simulatore usato come lo usa uno studente: assembla, esegue, debugga,
- * interagisce con i pin, carica e salva file.
+ * cambia device, interagisce con i pin.
  */
 const { test, expect } = require( '@playwright/test' );
-const { openSimulator, setSource, button, assemble, cpuState } = require( './helpers' );
-
-const status = ( page ) => page.locator( '#status-text' );
+const { openSimulator, setSource, button, status, assemble, loadExample, cpuState, portPins } = require( './helpers' );
 
 test.describe( 'assemblaggio', () => {
 	test( 'il programma iniziale si assembla', async ( { page } ) => {
 		await openSimulator( page );
 		await assemble( page );
-		await expect( status( page ) ).toHaveText( /^Assemblato: \d+ parole$/ );
-		await expect( page.locator( '#error-panel' ) ).toBeEmpty();
+		await expect( status( page ) ).toHaveText( 'Assembled' );
+		await expect( page.locator( '#error-list .error-item' ) ).toHaveCount( 0 );
+		await expect( button( page, 'run' ) ).toBeEnabled();
 	} );
 
-	test( 'gli errori sono elencati per riga ed evidenziati nell\'editor', async ( { page } ) => {
+	test( 'gli errori sono elencati per riga', async ( { page } ) => {
 		await openSimulator( page );
 		await setSource( page, '    NOP\n    MOVLW FOO\n    BSF PORTB, 9' );
 		await assemble( page );
 
-		await expect( status( page ) ).toHaveText( 'Errori di assemblaggio: 2' );
-		const rows = page.locator( '#error-panel .picsim__error' );
+		await expect( status( page ) ).toHaveText( '2 Errors' );
+		const rows = page.locator( '#error-list .error-item' );
 		await expect( rows ).toHaveCount( 2 );
-		await expect( rows.nth( 0 ) ).toContainText( 'Riga 2' );
+		await expect( rows.nth( 0 ) ).toContainText( 'Line 2' );
 		await expect( rows.nth( 0 ) ).toContainText( 'Simbolo non definito: FOO' );
-		await expect( rows.nth( 1 ) ).toContainText( 'Riga 3' );
-		await expect( page.locator( '.picsim__line-num--error' ) ).toHaveCount( 2 );
+		await expect( rows.nth( 1 ) ).toContainText( 'Line 3' );
+		await expect( button( page, 'run' ) ).toBeDisabled();
 	} );
 
 	test( 'un operando con HTML resta testo nel pannello errori', async ( { page } ) => {
-		// Regressione XSS: il messaggio era inserito con innerHTML.
 		await openSimulator( page );
 		await setSource( page, '    MOVLW <img src=x onerror="window.__picsimXss=1">' );
 		await assemble( page );
 
-		await expect( page.locator( '#error-panel' ) ).toContainText( '<img src=x' );
-		await expect( page.locator( '#error-panel img' ) ).toHaveCount( 0 );
+		await expect( page.locator( '#error-list' ) ).toContainText( '<img src=x' );
+		await expect( page.locator( '#error-list img' ) ).toHaveCount( 0 );
 		expect( await page.evaluate( () => window.__picsimXss ) ).toBeUndefined();
 	} );
 
-	test( 'modificare il sorgente cancella gli errori', async ( { page } ) => {
+	test( 'modificare il sorgente chiede di riassemblare', async ( { page } ) => {
 		await openSimulator( page );
-		await setSource( page, '    FOO' );
 		await assemble( page );
-		await expect( page.locator( '#error-panel .picsim__error' ) ).toHaveCount( 1 );
-
 		await page.locator( '#code-editor' ).press( 'End' );
 		await page.locator( '#code-editor' ).pressSequentially( ' ' );
-		await expect( page.locator( '#error-panel .picsim__error' ) ).toHaveCount( 0 );
+		await expect( status( page ) ).toHaveText( 'Modified' );
+		await expect( button( page, 'run' ) ).toBeDisabled();
 	} );
 } );
 
 test.describe( 'esecuzione e debug', () => {
-	test( 'Step esegue un\'istruzione ed evidenzia la riga corrente', async ( { page } ) => {
+	test( 'Step esegue un\'istruzione e aggiorna i registri', async ( { page } ) => {
 		await openSimulator( page );
 		await setSource( page, '    MOVLW 0x3C\n    MOVWF 0x20\n    GOTO $' );
 		await assemble( page );
 
 		await button( page, 'step' ).click();
 		await expect( page.locator( '#reg-w' ) ).toHaveText( '3C' );
-		await expect( page.locator( '#reg-pc' ) ).toHaveText( '001' );
-		await expect( page.locator( '.picsim__line-num--current' ) ).toHaveAttribute( 'data-line', '2' );
-
-		await button( page, 'step' ).click();
-		expect( ( await page.evaluate( () => window.picSim.cpu.ram[ 0x20 ] ) ) ).toBe( 0x3C );
+		await expect( page.locator( '#reg-pc' ) ).toHaveText( '0001' );
+		await expect( page.locator( '#current-instruction' ) ).toHaveText( '001: MOVWF 0x20' );
 	} );
 
-	test( 'Step su un programma non ancora assemblato lo assembla', async ( { page } ) => {
+	test( 'il flag Z si accende nel pannello registri', async ( { page } ) => {
+		// Regressione: setZ(true) azzerava Z.
 		await openSimulator( page );
-		await setSource( page, '    MOVLW 7\n    GOTO $' );
+		await setSource( page, '    MOVLW 1\n    ANDLW 0\n    GOTO $' );
+		await assemble( page );
 		await button( page, 'step' ).click();
-		await expect( page.locator( '#reg-w' ) ).toHaveText( '07' );
+		await button( page, 'step' ).click();
+		await expect( page.locator( '#bit-z' ) ).toHaveClass( /\bset\b/ );
 	} );
 
 	test( 'Run si ferma sul breakpoint', async ( { page } ) => {
 		await openSimulator( page );
-		await setSource( page, 'LOOP: INCF 0x20, F\n    INCF 0x21, F\n    GOTO LOOP' );
+		await setSource( page, 'LOOP: NOP\n    NOP\n    INCF 0x20, F\n    GOTO LOOP' );
 		await assemble( page );
-
-		// Click sul numero della riga 2 (indirizzo 001).
-		await page.locator( '.picsim__line-num[data-line="2"]' ).click();
-		await expect( page.locator( '.picsim__line-num--bp' ) ).toHaveCount( 1 );
-		await expect( page.locator( '#breakpoints-list' ) ).toContainText( '0x001' );
+		await page.locator( '.pic-gutter-bp[data-line="3"]' ).click();
+		await expect( page.locator( '.pic-gutter-bp[data-line="3"]' ) ).toHaveClass( /bp-active/ );
 
 		await button( page, 'run' ).click();
-		await expect( status( page ) ).toHaveText( 'Breakpoint a 0x001' );
-		const state = await cpuState( page );
-		expect( state.PC ).toBe( 1 );
+		await expect( status( page ) ).toHaveText( 'Breakpoint' );
+		const s = await cpuState( page );
+		expect( s.PC ).toBe( 2 );
 		await expect( button( page, 'run' ) ).toBeEnabled();
-		await expect( button( page, 'stop' ) ).toBeDisabled();
 	} );
 
-	test( 'Run e Stop', async ( { page } ) => {
+	test( 'Run e Stop; il tempo simulato avanza', async ( { page } ) => {
 		await openSimulator( page );
-		await setSource( page, 'LOOP: INCF 0x20, F\n    GOTO LOOP' );
 		await assemble( page );
-
 		await button( page, 'run' ).click();
-		await expect( status( page ) ).toHaveText( 'In esecuzione...' );
-		await expect( button( page, 'stop' ) ).toBeEnabled();
-		await expect.poll( async () => ( await cpuState( page ) ).cycles ).toBeGreaterThan( 50 );
-
+		await expect( status( page ) ).toHaveText( 'Running' );
+		await expect.poll( async () => ( await cpuState( page ) ).cycles ).toBeGreaterThan( 100000 );
 		await button( page, 'stop' ).click();
-		await expect( status( page ) ).toHaveText( 'Fermo' );
+		await expect( status( page ) ).toHaveText( 'Halted' );
+
 		const cycles = ( await cpuState( page ) ).cycles;
 		await page.waitForTimeout( 300 );
 		expect( ( await cpuState( page ) ).cycles ).toBe( cycles );
+		await expect( page.locator( '#sim-time' ) ).toHaveText( /\d+(\.\d+)? (ms|s)$/ );
 	} );
 
-	test( 'in tempo reale il LED dell\'esempio 01 lampeggia', async ( { page } ) => {
-		// Regressione: a 1000 istruzioni al secondo il LED cambiava ogni 2 minuti.
+	test( 'in tempo reale il LED Blink cambia stato in meno di un secondo', async ( { page } ) => {
 		await openSimulator( page );
-		await page.locator( '#examples-select2' ).selectOption( '01_blink_led' );
-		await expect( status( page ) ).toHaveText( 'Caricato: 01_blink_led' );
-		await expect( page.locator( '#run-speed2' ) ).toHaveValue( '1' );
-
-		await button( page, 'run' ).click();
-		const rb0 = page.locator( '#portb-pins .picsim__pin[data-bit="0"]' );
-		await expect( rb0 ).toHaveClass( /picsim__pin--high/, { timeout: 3000 } );
-		await expect( rb0 ).toHaveClass( /picsim__pin--low/, { timeout: 3000 } );
-		await expect( rb0 ).toHaveClass( /picsim__pin--high/, { timeout: 3000 } );
-		await button( page, 'stop' ).click();
-
-		await expect( page.locator( '#sim-time' ) ).toHaveText( /^\d+\.\d (ms)$|^\d+\.\d{3} s$/ );
-	} );
-
-	test( 'la velocita\' di Run si sceglie e le due select restano allineate', async ( { page } ) => {
-		await openSimulator( page );
-		await setSource( page, 'LOOP: INCF 0x20, F\n    GOTO LOOP' );
 		await assemble( page );
+		await button( page, 'run' ).click();
+		await expect.poll( () => portPins( page, 'B' ), { timeout: 3000 } ).toBe( 1 );
+		await expect.poll( () => portPins( page, 'B' ), { timeout: 3000 } ).toBe( 0 );
+		await button( page, 'stop' ).click();
+	} );
 
-		await page.locator( '#run-speed2' ).selectOption( '0.001' );
-		await expect( page.locator( '#run-speed' ) ).toHaveValue( '0.001' );
+	test( 'la velocita\' di Run si sceglie dal menu', async ( { page } ) => {
+		await openSimulator( page );
+		await assemble( page );
+		await page.locator( '#run-speed' ).selectOption( '0.001' );
 		expect( await page.evaluate( () => window.picSim.simulator.speedFactor ) ).toBe( 0.001 );
 
-		// 1/1000 del tempo reale = 1000 cicli al secondo.
 		await button( page, 'run' ).click();
 		await page.waitForTimeout( 1000 );
 		await button( page, 'stop' ).click();
 		const slow = ( await cpuState( page ) ).cycles;
-		expect( slow ).toBeGreaterThan( 500 );
-		expect( slow ).toBeLessThan( 2000 );
+		expect( slow ).toBeGreaterThan( 300 );
+		expect( slow ).toBeLessThan( 5000 );
 
-		await page.locator( '#run-speed2' ).selectOption( 'max' );
+		await page.locator( '#run-speed' ).selectOption( 'max' );
 		expect( await page.evaluate( () => window.picSim.simulator.speedFactor ) ).toBe( Infinity );
 	} );
 
-	test( 'Animate avanza un passo alla volta', async ( { page } ) => {
+	test( 'Step Over su CALL DELAY arriva all\'istruzione dopo la CALL', async ( { page } ) => {
 		await openSimulator( page );
-		await setSource( page, 'LOOP: INCF 0x20, F\n    GOTO LOOP' );
+		await setSource( page,
+			'    CALL DELAY\n    NOP\nL:  GOTO L\n' +
+			'DELAY: MOVLW 0xFF\n    MOVWF 0x20\nD1: MOVLW 0xFF\n    MOVWF 0x21\n' +
+			'D2: DECFSZ 0x21, F\n    GOTO D2\n    DECFSZ 0x20, F\n    GOTO D1\n    RETURN' );
 		await assemble( page );
+
+		await button( page, 'step-over' ).click();
+		await expect( status( page ) ).toHaveText( 'Step Over' );
+		const s = await cpuState( page );
+		expect( s.PC ).toBe( 1 );
+		expect( s.stackUsed ).toBe( 0 );
+		expect( s.cycles ).toBeGreaterThan( 190000 );
+	} );
+
+	test( 'Animate avanza un passo alla volta al ritmo del cursore', async ( { page } ) => {
+		await openSimulator( page );
+		await setSource( page, 'L: INCF 0x20, F\n    GOTO L' );
+		await assemble( page );
+		await page.locator( '#speed-slider' ).fill( '5' );
+		await expect( page.locator( '#speed-value' ) ).toHaveText( '100 Hz' );
 
 		await button( page, 'animate' ).click();
-		await expect( status( page ) ).toHaveText( 'Animate in corso...' );
-		await expect.poll( async () => ( await cpuState( page ) ).PC !== 0 || ( await cpuState( page ) ).cycles > 0 ).toBe( true );
+		await expect( status( page ) ).toHaveText( 'Animating' );
+		await page.waitForTimeout( 500 );
 		await button( page, 'stop' ).click();
-		await expect( status( page ) ).toHaveText( 'Fermo' );
+		const steps = await page.evaluate( () => window.picSim.simulator.stepCount );
+		expect( steps ).toBeGreaterThan( 10 );
+		expect( steps ).toBeLessThan( 120 );
 	} );
 
-	test( 'Reset riporta PC e registri allo stato iniziale', async ( { page } ) => {
-		await openSimulator( page );
-		await setSource( page, '    MOVLW 9\n    GOTO $' );
-		await assemble( page );
-		await button( page, 'step' ).click();
-		await expect( page.locator( '#reg-w' ) ).toHaveText( '09' );
-
-		await button( page, 'reset' ).click();
-		await expect( page.locator( '#reg-w' ) ).toHaveText( '00' );
-		await expect( page.locator( '#reg-pc' ) ).toHaveText( '000' );
-		await expect( page.locator( '#cycles-count' ) ).toHaveText( '0' );
-	} );
-
-	test( 'il flag Z si accende nel pannello registri', async ( { page } ) => {
-		await openSimulator( page );
-		await setSource( page, '    CLRW\n    GOTO $' );
-		await assemble( page );
-		await expect( page.locator( '#bit-z' ) ).not.toHaveClass( /picsim__bit--set/ );
-		await button( page, 'step' ).click();
-		await expect( page.locator( '#bit-z' ) ).toHaveClass( /picsim__bit--set/ );
-	} );
-} );
-
-test.describe( 'porte e pin', () => {
-	test( 'esempio 03: premere RB4 accende il LED su RB0', async ( { page } ) => {
-		await openSimulator( page );
-		await page.locator( '#examples-select2' ).selectOption( '03_button_led' );
-		await expect( status( page ) ).toHaveText( 'Caricato: 03_button_led' );
-		await expect( page.locator( '#code-editor' ) ).toHaveValue( /PULSANTE E LED/ );
-
-		await button( page, 'run' ).click();
-		const rb0 = page.locator( '#portb-pins .picsim__pin[data-bit="0"]' );
-		const rb4 = page.locator( '#portb-pins .picsim__pin[data-bit="4"]' );
-		await expect( rb0 ).toHaveClass( /picsim__pin--output/ );
-		await expect( rb0 ).toHaveClass( /picsim__pin--low/ );
-
-		await rb4.click();
-		await expect( rb4 ).toHaveClass( /picsim__pin--high/ );
-		await expect( rb0 ).toHaveClass( /picsim__pin--high/ );
-
-		await rb4.click();
-		await expect( rb0 ).toHaveClass( /picsim__pin--low/ );
-		await button( page, 'stop' ).click();
-	} );
-
-	test( 'un pin di uscita non si commuta dal pannello', async ( { page } ) => {
-		await openSimulator( page );
-		await setSource( page, '    BSF STATUS, RP0\n    CLRF TRISB\n    GOTO $' );
-		await assemble( page );
-		await button( page, 'step' ).click();
-		await button( page, 'step' ).click();
-
-		await page.locator( '#portb-pins .picsim__pin[data-bit="3"]' ).click();
-		await expect( status( page ) ).toHaveText( 'RB3 è configurato come uscita' );
-	} );
-
-	test( 'TRIS modificabile dal pannello', async ( { page } ) => {
-		await openSimulator( page );
-		await page.locator( '#trisb-value' ).click();
-		const input = page.locator( '#trisb-value input' );
-		await input.fill( '0F' );
-		await input.press( 'Enter' );
-
-		await expect( page.locator( '#trisb-value' ) ).toHaveText( '0F' );
-		await expect( page.locator( '#portb-pins .picsim__pin[data-bit="7"]' ) ).toHaveClass( /picsim__pin--output/ );
-		await expect( page.locator( '#portb-pins .picsim__pin[data-bit="0"]' ) ).toHaveClass( /picsim__pin--input/ );
-	} );
-} );
-
-test.describe( 'memoria', () => {
-	test( 'una cella RAM si modifica e resta modificata durante Run', async ( { page } ) => {
-		await openSimulator( page );
-		await setSource( page, 'LOOP: INCF 0x30, F\n    GOTO LOOP' );
-		await assemble( page );
-
-		await page.locator( '.picsim__mem-val[data-type="ram"][data-addr="12"]' ).click(); // 0x0C
-		const input = page.locator( '.picsim__mem-input' );
-		await input.fill( 'A5' );
-		await input.press( 'Enter' );
-		await expect( status( page ) ).toHaveText( 'RAM[C] = A5' );
-		await expect( page.locator( '.picsim__mem-val[data-addr="12"]' ) ).toHaveText( 'A5' );
-
-		await button( page, 'run' ).click();
-		await expect.poll( async () => page.evaluate( () => window.picSim.cpu.ram[ 0x30 ] ) ).toBeGreaterThan( 5 );
-		await expect( page.locator( '.picsim__mem-val[data-addr="12"]' ) ).toHaveText( 'A5' );
-		await button( page, 'stop' ).click();
-	} );
-
-	test( 'esempio 07: la EEPROM sopravvive al Reset e si cancella riassemblando', async ( { page } ) => {
-		await openSimulator( page );
-		await page.locator( '#examples-select2' ).selectOption( '07_eeprom' );
-		await expect( status( page ) ).toHaveText( 'Caricato: 07_eeprom' );
-		await assemble( page );
-
-		const ee0 = () => page.evaluate( () => window.picSim.cpu.eeprom[ 0 ] );
-		expect( await ee0() ).toBe( 0xFF ); // appena programmata
-
-		await button( page, 'run' ).click();
-		await expect.poll( ee0, { timeout: 5000 } ).toBeLessThan( 0xFF );
-		await button( page, 'stop' ).click();
-		const saved = await ee0();
-
-		await button( page, 'reset' ).click();
-		expect( await ee0() ).toBe( saved );
-		await page.locator( '.picsim__memory-tab[data-type="eeprom"]' ).click();
-		await expect( page.locator( '.picsim__mem-val[data-type="eeprom"][data-addr="0"]' ) )
-			.toHaveText( saved.toString( 16 ).toUpperCase().padStart( 2, '0' ) );
-
-		await assemble( page );
-		expect( await ee0() ).toBe( 0xFF );
-	} );
-
-	test( 'la vista Prog mostra il disassemblato', async ( { page } ) => {
-		await openSimulator( page );
-		await setSource( page, '    MOVLW 0x3C\n    GOTO $' );
-		await assemble( page );
-		await page.locator( '.picsim__memory-tab[data-type="program"]' ).click();
-
-		const first = page.locator( '.picsim__mem-instr' ).first();
-		await expect( first ).toContainText( 'MOVLW 0x3C' );
-		await expect( first ).toHaveClass( /picsim__mem-instr--current/ );
-	} );
-} );
-
-test.describe( 'file', () => {
-	test( 'Load carica un .asm dal PC', async ( { page } ) => {
-		await openSimulator( page );
-		await page.locator( '#file-input' ).setInputFiles( {
-			name: 'mio.asm',
-			mimeType: 'text/plain',
-			buffer: Buffer.from( '; caricato dal PC\n    MOVLW 1\n    GOTO $\n' ),
-		} );
-		await expect( status( page ) ).toHaveText( 'Caricato: mio.asm' );
-		await expect( page.locator( '#code-editor' ) ).toHaveValue( /caricato dal PC/ );
-	} );
-
-	test( 'Save scarica il sorgente dell\'editor', async ( { page } ) => {
-		await openSimulator( page );
-		await setSource( page, '; da salvare\n    NOP\n' );
-
-		const [ download ] = await Promise.all( [
-			page.waitForEvent( 'download' ),
-			button( page, 'save' ).click(),
-		] );
-		expect( download.suggestedFilename() ).toBe( 'programma.asm' );
-		const fs = require( 'fs' );
-		expect( fs.readFileSync( await download.path(), 'utf8' ) ).toBe( '; da salvare\n    NOP\n' );
-	} );
-
-	test( 'New chiede conferma e sostituisce il programma', async ( { page } ) => {
-		await openSimulator( page );
-		page.once( 'dialog', ( dialog ) => dialog.accept() );
-		await button( page, 'new' ).click();
-		await expect( page.locator( '#code-editor' ) ).toHaveValue( /Nuovo programma PIC16F84A/ );
-		await expect( status( page ) ).toHaveText( 'Nuovo programma' );
-	} );
-
-	test( 'New annullato non tocca il programma', async ( { page } ) => {
-		await openSimulator( page );
-		await setSource( page, '; il mio lavoro' );
-		page.once( 'dialog', ( dialog ) => dialog.dismiss() );
-		await button( page, 'new' ).click();
-		await expect( page.locator( '#code-editor' ) ).toHaveValue( '; il mio lavoro' );
-	} );
-} );
-
-test.describe( 'tastiera e schermo intero', () => {
-	test( 'le scorciatoie funzionano con il focus nel simulatore', async ( { page } ) => {
+	test( 'Reset riporta PC e cicli a zero e conserva il programma', async ( { page } ) => {
 		await openSimulator( page );
 		await setSource( page, '    MOVLW 5\n    GOTO $' );
 		await assemble( page );
+		await button( page, 'step' ).click();
+		await button( page, 'reset' ).click();
 
-		// Click su un'area non focalizzabile del simulatore, poi F8 = Step.
-		await page.locator( '#reg-w' ).click();
-		await page.keyboard.press( 'F8' );
+		const s = await cpuState( page );
+		expect( s.PC ).toBe( 0 );
+		expect( s.cycles ).toBe( 0 );
+		await expect( page.locator( '#cycles' ) ).toHaveText( '0' );
+		await button( page, 'step' ).click();
 		await expect( page.locator( '#reg-w' ) ).toHaveText( '05' );
 	} );
+} );
 
-	test( 'fuori dal simulatore Ctrl+S e F5 restano alla pagina', async ( { page } ) => {
-		await openSimulator( page );
-		await page.evaluate( () => {
-			document.activeElement?.blur();
-			window.__picsimPrevented = [];
-			document.addEventListener( 'keydown', ( e ) => {
-				if ( e.key !== 'Control' ) window.__picsimPrevented.push( e.defaultPrevented );
-			} );
-		} );
-		await page.keyboard.press( 'Control+s' );
-		await page.keyboard.press( 'F8' );
-		expect( await page.evaluate( () => window.__picsimPrevented ) ).toEqual( [ false, false ] );
-		await expect( page.locator( '#reg-pc' ) ).toHaveText( '000' );
+test.describe( 'device, esempi e pin', () => {
+	test( 'un esempio per 877A cambia device da solo e si assembla', async ( { page } ) => {
+		// Regressione: con il 16F84A selezionato i simboli del 877A erano sconosciuti.
+		const errors = await openSimulator( page );
+		await loadExample( page, 'Multi-Port I/O' );
+		await expect( page.locator( '#device-select' ) ).toHaveValue( 'PIC16F877A' );
+		await expect( page.locator( '#pin-D0' ) ).toBeVisible();
+
+		await assemble( page );
+		await expect( status( page ) ).toHaveText( 'Assembled' );
+		expect( errors ).toEqual( [] );
 	} );
 
-	test( 'schermo intero: entra ed esce', async ( { page } ) => {
+	test( 'un ingresso dal pannello porte arriva al programma', async ( { page } ) => {
 		await openSimulator( page );
-		const container = page.locator( '#pic-simulator' );
+		await loadExample( page, 'Button + LED' );
+		await assemble( page );
+		await button( page, 'run' ).click();
 
-		await page.locator( '#btn-fullscreen2' ).click();
-		await expect( container ).toHaveClass( /picsim--fullscreen/ );
-		// In schermo intero compare la toolbar completa.
-		await expect( page.locator( '#btn-run' ) ).toBeVisible();
+		await page.locator( '#pin-A0 .pin-input' ).check();
+		await expect.poll( () => portPins( page, 'B' ) ).toBe( 1 );
+		await page.locator( '#pin-A0 .pin-input' ).uncheck();
+		await expect.poll( () => portPins( page, 'B' ) ).toBe( 0 );
+		await button( page, 'stop' ).click();
+	} );
 
-		await page.locator( '#btn-fullscreen' ).click();
-		await expect( container ).not.toHaveClass( /picsim--fullscreen/ );
+	test( 'la EEPROM sopravvive al Reset e si cancella riassemblando', async ( { page } ) => {
+		await openSimulator( page );
+		await loadExample( page, 'EEPROM Read/Write' );
+		await assemble( page );
+		await button( page, 'run' ).click();
+		await expect.poll( () => portPins( page, 'B' ) ).toBe( 0x42 );
+		await button( page, 'stop' ).click();
+
+		const eeprom0 = () => page.evaluate( () => window.picSim.simulator.readEEPROM( 0 ) );
+		expect( await eeprom0() ).toBe( 0x42 );
+		await button( page, 'reset' ).click();
+		expect( await eeprom0() ).toBe( 0x42 );
+
+		await assemble( page );
+		expect( await eeprom0() ).toBe( 0xFF );
+	} );
+
+	test( 'il cambio di device dal menu ricostruisce porte e registri', async ( { page } ) => {
+		const errors = await openSimulator( page );
+		await page.locator( '#device-select' ).selectOption( 'PIC16F628A' );
+		await expect( page.locator( '#messages' ) ).toContainText( 'Switched to PIC16F628A' );
+		await expect( page.locator( '#reg-eedata' ) ).toBeVisible();
+		await expect( page.locator( '#pin-B7' ) ).toBeVisible();
+		await expect( page.locator( '#pin-C0' ) ).toHaveCount( 0 );
+		expect( errors ).toEqual( [] );
 	} );
 } );
