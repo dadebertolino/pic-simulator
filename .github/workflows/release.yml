@@ -76,7 +76,7 @@ jobs:
           cat release-notes.md
 
       - name: Crea/aggiorna Release con lo ZIP
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "WebPicSimulator ${{ env.VERSION }}"
           files: pic-simulator-*.zip
